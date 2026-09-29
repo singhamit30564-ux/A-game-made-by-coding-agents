@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>STEALTH RESILIENCE - AAA Open World</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎯</text></svg>">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;600;700&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;user-select:none}
+:root{--zen:#00ff88;--danger:#ff2040;--gold:#ffcc00;--bg:#0a0e13;--panel:rgba(10,14,19,0.9)}
+body{background:#000;color:#fff;font-family:'Rajdhani',sans-serif;overflow:hidden;touch-action:none}
+canvas{display:block;width:100vw;height:100vh}
+
+/* LOADING */
+#loading{position:fixed;inset:0;background:radial-gradient(ellipse at center,#1a2a3a 0%,#0a0e13 70%,#000 100%);z-index:10000;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity 0.8s}
+#loading h1{font-family:'Orbitron';font-weight:900;font-size:clamp(32px,6vw,72px);letter-spacing:0.15em;background:linear-gradient(90deg,#fff,#00ff88,#00aaff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;animation:glow 2s ease-in-out infinite alternate}
+@keyframes glow{from{filter:drop-shadow(0 0 10px rgba(0,255,136,0.5))}to{filter:drop-shadow(0 0 30px rgba(0,255,136,0.9))}}
+#loading .bar{width:320px;height:4px;background:rgba(255,255,255,0.1);margin:30px 0;border-radius:2px;overflow:hidden}
+#loading .fill{height:100%;width:0%;background:linear-gradient(90deg,#00ff88,#00aaff);box-shadow:0 0 10px #00ff88;transition:width 0.2s}
+#loading p{opacity:0.6;font-size:14px;letter-spacing:0.2em}
+
+/* MAIN MENU */
+#mainMenu{position:fixed;inset:0;background:linear-gradient(rgba(0,0,0,0.7),rgba(0,0,0,0.9)),url('assets/images/references/low-poly-open-world-city-gta-style-3d-1.png');background-size:cover;background-position:center;z-index:9000;display:flex;align-items:center;justify-content:space-between;padding:0 8vw}
+.menu-left{max-width:600px}
+.menu-left h1{font-family:'Orbitron';font-size:clamp(48px,8vw,96px);line-height:0.9;font-weight:900}
+.menu-left h1 span{display:block}
+.menu-left h1 span:first-child{color:#fff}
+.menu-left h1 span:last-child{color:var(--zen);text-shadow:0 0 20px var(--zen)}
+.menu-left .tagline{margin:20px 0 40px;font-size:18px;opacity:0.8;letter-spacing:0.1em;border-left:3px solid var(--zen);padding-left:15px}
+.btn{font-family:'Orbitron';background:linear-gradient(90deg,#00ff88,#00cc6a);color:#000;border:none;padding:14px 36px;font-weight:700;letter-spacing:0.1em;cursor:pointer;clip-path:polygon(10% 0,100% 0,90% 100%,0 100%);transition:all 0.2s;font-size:16px;margin:6px}
+.btn:hover{transform:scale(1.05);box-shadow:0 0 20px var(--zen)}
+.btn.secondary{background:rgba(255,255,255,0.1);color:#fff;border:1px solid rgba(255,255,255,0.2)}
+.btn.danger{background:linear-gradient(90deg,#ff2040,#cc0000);color:#fff}
+.menu-right{width:380px;background:var(--panel);backdrop-filter:blur(20px);border:1px solid rgba(0,255,136,0.2);padding:24px;border-radius:4px}
+.menu-right h3{font-family:'Orbitron';color:var(--zen);margin-bottom:16px;letter-spacing:0.15em}
+.stat-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.05);font-size:14px}
+.stat-row span:last-child{color:var(--zen);font-weight:700}
+
+/* HUD */
+#hud{position:fixed;inset:0;pointer-events:none;z-index:100}
+.hud-top{position:absolute;top:0;left:0;right:0;display:flex;justify-content:space-between;padding:14px 20px;background:linear-gradient(to bottom,rgba(0,0,0,0.8),transparent)}
+.hud-bottom{position:absolute;bottom:0;left:0;right:0;display:flex;justify-content:space-between;align-items:end;padding:14px 20px;background:linear-gradient(to top,rgba(0,0,0,0.8),transparent)}
+#healthBar{width:220px}
+.bar-bg{height:8px;background:rgba(255,255,255,0.1);border-radius:4px;overflow:hidden;margin:4px 0}
+.bar-fill{height:100%;transition:width 0.3s}
+#hpFill{background:linear-gradient(90deg,#ff2040,#ffaa00);width:100%}
+#armorFill{background:linear-gradient(90deg,#00aaff,#00ff88);width:60%}
+#zenDisplay{font-family:'Orbitron';color:var(--zen);font-weight:700;font-size:20px;text-shadow:0 0 10px var(--zen)}
+#ammoDisplay{font-family:'Orbitron';text-align:right}
+#ammoDisplay .big{font-size:32px;font-weight:900;line-height:1}
+#ammoDisplay .small{opacity:0.6;font-size:14px}
+#crosshair{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:20px;height:20px;pointer-events:none}
+#crosshair:before,#crosshair:after{content:'';position:absolute;background:#fff;opacity:0.8}
+#crosshair:before{left:50%;top:0;width:1px;height:100%;transform:translateX(-50%)}
+#crosshair:after{top:50%;left:0;height:1px;width:100%;transform:translateY(-50%)}
+#crosshair .dot{position:absolute;left:50%;top:50%;width:4px;height:4px;background:var(--zen);border-radius:50%;transform:translate(-50%,-50%);box-shadow:0 0 6px var(--zen)}
+
+/* MINIMAP */
+#minimap{position:absolute;top:70px;right:20px;width:180px;height:180px;background:rgba(0,0,0,0.7);border:2px solid rgba(0,255,136,0.3);border-radius:50%;overflow:hidden;backdrop-filter:blur(10px)}
+#minimap canvas{width:100%;height:100%}
+#minimap .north{position:absolute;top:4px;left:50%;transform:translateX(-50%);font-size:10px;color:var(--zen);font-weight:700}
+
+/* QUEST HUD */
+#questHud{position:absolute;top:70px;left:20px;max-width:320px}
+.quest-card{background:var(--panel);border-left:3px solid var(--zen);padding:10px 14px;margin-bottom:8px;backdrop-filter:blur(10px)}
+.quest-card h4{font-family:'Orbitron';font-size:12px;color:var(--zen);letter-spacing:0.1em}
+.quest-card p{font-size:13px;margin:4px 0;opacity:0.9}
+.quest-card .obj{font-size:11px;opacity:0.7;padding-left:10px;position:relative}
+.quest-card .obj:before{content:'○';position:absolute;left:0}
+.quest-card .obj.done{color:var(--zen);text-decoration:line-through}
+.quest-card .obj.done:before{content:'●';color:var(--zen)}
+
+/* INVENTORY / SHOP */
+.modal{position:fixed;inset:0;background:rgba(0,0,0,0.85);backdrop-filter:blur(20px);z-index:5000;display:none;align-items:center;justify-content:center;padding:20px}
+.modal.active{display:flex}
+.modal-box{width:min(1100px,95vw);height:min(720px,90vh);background:linear-gradient(135deg,#121a25,#0a0e13);border:1px solid rgba(0,255,136,0.2);display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.8)}
+.modal-head{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid rgba(255,255,255,0.1);font-family:'Orbitron'}
+.modal-head h2{color:var(--zen);letter-spacing:0.15em}
+.modal-body{flex:1;overflow:auto;display:flex}
+.inventory-grid{flex:1;display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;padding:16px;overflow:auto}
+.gun-card{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);padding:12px;border-radius:4px;transition:all 0.2s;cursor:pointer;position:relative;overflow:hidden}
+.gun-card:hover{border-color:var(--zen);background:rgba(0,255,136,0.05);transform:translateY(-2px)}
+.gun-card.owned{border-color:var(--zen)}
+.gun-card .rarity{position:absolute;top:0;right:0;padding:2px 8px;font-size:10px;font-family:'Orbitron';font-weight:700}
+.rarity.Common{background:#666}
+.rarity.Uncommon{background:#1e90ff}
+.rarity.Rare{background:#a020f0}
+.rarity.Epic{background:#ff8c00}
+.rarity.Legendary{background:linear-gradient(90deg,#ffcc00,#ff6600)}
+.rarity.Mythic{background:linear-gradient(90deg,#ff00ff,#00ffff);color:#000}
+.gun-card h4{font-family:'Orbitron';font-size:13px;margin:6px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gun-card .meta{display:flex;gap:8px;font-size:11px;opacity:0.7;flex-wrap:wrap}
+.gun-card .price{color:var(--zen);font-weight:700;margin-top:6px;font-family:'Orbitron'}
+.side-panel{width:320px;border-left:1px solid rgba(255,255,255,0.08);padding:16px;background:rgba(0,0,0,0.3);overflow:auto}
+.filter-bar{display:flex;gap:6px;padding:12px 16px;flex-wrap:wrap;border-bottom:1px solid rgba(255,255,255,0.06)}
+.filter-bar button{padding:6px 12px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:#fff;font-size:11px;font-family:'Orbitron';cursor:pointer;border-radius:2px}
+.filter-bar button.active{background:var(--zen);color:#000;border-color:var(--zen)}
+
+/* CONTROLS HELP */
+#controls{position:absolute;bottom:70px;left:20px;background:var(--panel);padding:10px 14px;border-radius:4px;font-size:11px;opacity:0.6;pointer-events:none;border:1px solid rgba(255,255,255,0.05)}
+#controls b{color:var(--zen)}
+
+/* MOBILE */
+#mobileControls{position:fixed;inset:0;pointer-events:none;z-index:200;display:none}
+@media(max-width:900px){
+  #mainMenu{flex-direction:column;justify-content:center;gap:30px;padding:20px}
+  .menu-right{width:100%;max-width:400px}
+  #mobileControls{display:block}
+  .joystick{position:absolute;bottom:20px;left:20px;width:120px;height:120px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:50%;pointer-events:auto}
+  .joystick-knob{position:absolute;left:50%;top:50%;width:50px;height:50px;background:rgba(0,255,136,0.5);border-radius:50%;transform:translate(-50%,-50%)}
+  .action-btns{position:absolute;bottom:20px;right:20px;display:flex;flex-direction:column;gap:10px;pointer-events:auto}
+  .m-btn{width:56px;height:56px;border-radius:50%;background:rgba(0,0,0,0.6);border:1px solid rgba(0,255,136,0.3);color:#fff;font-weight:700;display:flex;align-items:center;justify-content:center}
+}
+
+/* PERFORMANCE */
+#perf{position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:1000;background:rgba(0,0,0,0.6);padding:4px 12px;border-radius:20px;font-size:11px;font-family:'Orbitron';display:flex;gap:12px;pointer-events:none}
+#perf span{color:var(--zen)}
+
+/* NOTIFICATIONS */
+#notifs{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:6000;pointer-events:none;display:flex;flex-direction:column;gap:10px;align-items:center}
+.notif{background:var(--panel);border:1px solid var(--zen);padding:12px 24px;font-family:'Orbitron';font-size:14px;animation:pop 3s forwards;backdrop-filter:blur(10px)}
+@keyframes pop{0%{transform:scale(0.8);opacity:0}15%{transform:scale(1.05);opacity:1}85%{opacity:1}100%{transform:scale(0.9);opacity:0}}
+
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-thumb{background:rgba(0,255,136,0.3);border-radius:3px}
+</style>
+</head>
+<body>
+<!-- LOADING -->
+<div id="loading">
+  <h1>STEALTH RESILIENCE</h1>
+  <div class="bar"><div class="fill" id="loadFill"></div></div>
+  <p id="loadText">INITIALIZING BLACK OPS PROTOCOL...</p>
+</div>
+
+<!-- MAIN MENU -->
+<div id="mainMenu">
+  <div class="menu-left">
+    <h1><span>STEALTH</span><span>RESILIENCE</span></h1>
+    <div class="tagline">YOU ARE JACKSON. HIRED MERCENARY.<br>TARGET: DRUG MAFIA MICHAEL. CITY IS YOUR WEAPON.<br>120 GUNS • 35 VEHICLES • 70 MISSIONS • ZEN ECONOMY</div>
+    <div>
+      <button class="btn" id="playBtn">▶ DEPLOY - NEW GAME</button>
+      <button class="btn secondary" id="loadBtn">LOADOUT / ARMOURY</button>
+      <button class="btn secondary" id="settingsBtn">SETTINGS - F15 OPTIMIZED</button>
+    </div>
+    <div style="margin-top:20px;display:flex;gap:10px;flex-wrap:wrap">
+      <span style="font-size:11px;opacity:0.5;border:1px solid rgba(255,255,255,0.1);padding:4px 8px">OPTIMIZED FOR SAMSUNG F15 5G</span>
+      <span style="font-size:11px;opacity:0.5;border:1px solid rgba(255,255,255,0.1);padding:4px 8px">THREE.JS AAA ENGINE</span>
+      <span style="font-size:11px;opacity:0.5;border:1px solid rgba(255,255,255,0.1);padding:4px 8px">LOW POLY HIGH FPS</span>
+    </div>
+  </div>
+  <div class="menu-right">
+    <h3>FIELD DOSSIER</h3>
+    <div class="stat-row"><span>OPERATIVE</span><span>JACKSON - TIER 1</span></div>
+    <div class="stat-row"><span>PRIMARY TARGET</span><span style="color:#ff2040">MICHAEL VARGAS</span></div>
+    <div class="stat-row"><span>LOCATION</span><span>SANTOS CARTEL CITY</span></div>
+    <div class="stat-row"><span>ARSENAL</span><span>125 WEAPONS</span></div>
+    <div class="stat-row"><span>VEHICLE FLEET</span><span>35 UNITS</span></div>
+    <div class="stat-row"><span>MAIN OPS</span><span>30 QUESTS</span></div>
+    <div class="stat-row"><span>SIDE OPS</span><span>40 QUESTS</span></div>
+    <div class="stat-row"><span>CURRENCY</span><span>ZEN COINS</span></div>
+    <div class="stat-row"><span>HEAVY SUPPORT</span><span>TANKS • JETS • MISSILES</span></div>
+    <div style="margin-top:16px;display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <img src="assets/images/references/tactical-mercenary-soldier-stealth-black-1.jpg" style="width:100%;height:70px;object-fit:cover;border:1px solid rgba(0,255,136,0.2)">
+      <img src="assets/images/references/drug-mafia-boss-cartel-villain-portrait-1.jpg" style="width:100%;height:70px;object-fit:cover;border:1px solid rgba(255,32,64,0.3)">
+      <img src="assets/images/references/military-guns-arsenal-assault-rifles-120-1.jpg" style="width:100%;height:70px;object-fit:cover;border:1px solid rgba(255,255,255,0.1)">
+      <img src="assets/images/references/supercars-sports-bikes-fighter-jets-tank-1.jpg" style="width:100%;height:70px;object-fit:cover;border:1px solid rgba(255,255,255,0.1)">
+    </div>
+    <div style="margin-top:12px;font-size:11px;opacity:0.5;line-height:1.4">
+      REFERENCE IMAGES SCRAPED FROM WEB FOR AUTHENTIC AAA FEEL. GAME RUNS ON LOW-END DEVICES WITH ADAPTIVE LOD, POOLED OBJECTS, BAKED LIGHTING.
+    </div>
+  </div>
+</div>
+
+<!-- GAME HUD -->
+<div id="hud" style="display:none">
+  <div class="hud-top">
+    <div id="healthBar">
+      <div style="display:flex;justify-content:space-between;font-size:11px;font-family:'Orbitron'"><span>HEALTH</span><span id="hpText">100</span></div>
+      <div class="bar-bg"><div class="bar-fill" id="hpFill"></div></div>
+      <div style="display:flex;justify-content:space-between;font-size:11px;font-family:'Orbitron';margin-top:4px"><span>ARMOR</span><span id="armorText">60</span></div>
+      <div class="bar-bg"><div class="bar-fill" id="armorFill"></div></div>
+    </div>
+    <div id="zenDisplay">◉ <span id="zenCount">2500</span> ZEN</div>
+    <div id="ammoDisplay"><div class="big"><span id="ammoCur">30</span> / <span id="ammoRes">120</span></div><div class="small" id="gunName">M4A1 Resilience</div></div>
+  </div>
+  <div id="crosshair"><div class="dot"></div></div>
+  <div id="minimap"><div class="north">N</div><canvas id="miniCanvas" width="180" height="180"></canvas></div>
+  <div id="questHud"></div>
+  <div class="hud-bottom">
+    <div id="controls">
+      <b>WASD</b> Move | <b>MOUSE</b> Look | <b>SHIFT</b> Sprint | <b>C</b> Stealth | <b>SPACE</b> Jump | <b>LMB</b> Shoot | <b>R</b> Reload | <b>E</b> Enter Vehicle | <b>Q</b> Grenade | <b>G</b> Mine | <b>TAB</b> Armoury | <b>M</b> Map/Quests | <b>1-4</b> Weapons
+    </div>
+    <div style="text-align:right;font-size:11px;opacity:0.6;font-family:'Orbitron'">
+      <div>STEALTH: <span id="stealthMeter" style="color:var(--zen)">HIDDEN</span></div>
+      <div>WANTED: <span id="wanted">☆☆☆☆☆</span></div>
+      <div id="fpsCounter">60 FPS | F15 MODE</div>
+    </div>
+  </div>
+</div>
+
+<div id="perf"><span id="perfFps">60 FPS</span> | <span id="perfDraw">0 DRAWS</span> | <span id="perfMem">LOW POLY</span></div>
+<div id="notifs"></div>
+
+<!-- MODALS -->
+<div class="modal" id="armouryModal">
+  <div class="modal-box">
+    <div class="modal-head"><h2>◉ ARMOURY - 125 WEAPONS</h2><button class="btn secondary" onclick="closeModal('armouryModal')">CLOSE [ESC]</button></div>
+    <div class="filter-bar" id="gunFilters">
+      <button class="active" data-filter="all">ALL 125</button>
+      <button data-filter="Pistol">PISTOLS 20</button>
+      <button data-filter="SMG">SMG 15</button>
+      <button data-filter="AR">AR 20</button>
+      <button data-filter="Shotgun">SHOTGUN 15</button>
+      <button data-filter="Sniper">SNIPER 15</button>
+      <button data-filter="LMG">LMG 10</button>
+      <button data-filter="Launcher">LAUNCHERS 8</button>
+      <button data-filter="Heavy">HEAVY</button>
+      <button data-filter="Mythic">MYTHIC</button>
+    </div>
+    <div class="modal-body">
+      <div class="inventory-grid" id="gunGrid"></div>
+      <div class="side-panel" id="gunDetail">
+        <h3 style="font-family:'Orbitron';color:var(--zen)">SELECT WEAPON</h3>
+        <p style="opacity:0.6;font-size:13px;margin-top:10px">125 guns crafted for Jackson. Each with unique stats. Buy with ZEN earned from quests.</p>
+        <div style="margin-top:20px">
+          <h4 style="font-family:'Orbitron';font-size:12px">HEAVY ARSENAL</h4>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;font-size:11px">
+            <div style="background:rgba(255,32,64,0.1);padding:8px;border:1px solid rgba(255,32,64,0.2)">💣 GRENADES x4 TYPES</div>
+            <div style="background:rgba(255,204,0,0.1);padding:8px;border:1px solid rgba(255,204,0,0.2)">🚀 ROCKET LAUNCHERS</div>
+            <div style="background:rgba(0,255,136,0.1);padding:8px;border:1px solid rgba(0,255,136,0.2)">💥 MORTARS 60-120mm</div>
+            <div style="background:rgba(0,170,255,0.1);padding:8px;border:1px solid rgba(0,170,255,0.2)">🎯 MISSILE STRIKES</div>
+            <div style="background:rgba(255,255,255,0.05);padding:8px;border:1px solid rgba(255,255,255,0.1)">💣 LANDMINES AT/AP</div>
+            <div style="background:rgba(160,32,240,0.1);padding:8px;border:1px solid rgba(160,32,240,0.2)">🔥 TANKS & JETS</div>
+          </div>
+        </div>
+        <div style="margin-top:20px">
+          <h4 style="font-family:'Orbitron';font-size:12px">VEHICLE BAY - 35 UNITS</h4>
+          <div id="vehicleList" style="margin-top:8px;display:flex;flex-direction:column;gap:6px;max-height:220px;overflow:auto"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="questModal">
+  <div class="modal-box">
+    <div class="modal-head"><h2>◉ OPERATIONS - 70 QUESTS</h2><button class="btn secondary" onclick="closeModal('questModal')">CLOSE [M]</button></div>
+    <div class="filter-bar">
+      <button class="active" data-qfilter="all">ALL 70</button>
+      <button data-qfilter="Main">MAIN 30</button>
+      <button data-qfilter="Side">SIDE 40</button>
+      <button data-qfilter="Active">ACTIVE</button>
+      <button data-qfilter="Done">COMPLETED</button>
+    </div>
+    <div class="modal-body" style="flex-direction:column">
+      <div id="questList" style="padding:16px;display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px;overflow:auto"></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="settingsModal">
+  <div class="modal-box" style="max-width:600px;height:auto">
+    <div class="modal-head"><h2>SETTINGS - F15 OPTIMIZED</h2><button class="btn secondary" onclick="closeModal('settingsModal')">CLOSE</button></div>
+    <div style="padding:20px">
+      <h4 style="font-family:'Orbitron';color:var(--zen);margin-bottom:12px">PERFORMANCE PRESET FOR SAMSUNG F15 5G</h4>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <button class="btn" id="qualityLow">LOW - F15 (60 FPS)</button>
+        <button class="btn secondary" id="qualityMed">MEDIUM (45 FPS)</button>
+        <button class="btn secondary" id="qualityHigh">HIGH (30 FPS)</button>
+        <button class="btn secondary" id="qualityUltra">ULTRA - PC ONLY</button>
+      </div>
+      <div style="margin-top:20px;font-size:13px;line-height:1.6;opacity:0.8">
+        <p>✓ Adaptive resolution scaling<br>✓ Pooled meshes & instancing<br>✓ No real-time shadows on Low<br>✓ Baked AO, LOD system<br>✓ 2K world, 80 buildings max<br>✓ Occlusion culling, fog</p>
+      </div>
+      <div style="margin-top:20px;display:flex;gap:10px">
+        <label style="flex:1"><span style="font-size:11px;font-family:'Orbitron'">DRAW DISTANCE</span><input type="range" id="drawDist" min="200" max="2000" value="600" style="width:100%"></label>
+        <label style="flex:1"><span style="font-size:11px;font-family:'Orbitron'">SENSITIVITY</span><input type="range" id="sens" min="0.1" max="3" step="0.1" value="1" style="width:100%"></label>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="mobileControls">
+  <div class="joystick" id="joystick"><div class="joystick-knob" id="joyKnob"></div></div>
+  <div class="action-btns">
+    <div class="m-btn" id="mShoot">🔫</div>
+    <div class="m-btn" id="mJump">⬆</div>
+    <div class="m-btn" id="mReload">↻</div>
+    <div class="m-btn" id="mVehicle">🚗</div>
+  </div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+<script type="module" src="src/main.js"></script>
+</body>
+</html>

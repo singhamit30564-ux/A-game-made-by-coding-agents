@@ -1,0 +1,17 @@
+{
+  "name": "Stealth Resilience - AAA Open World",
+  "short_name": "StealthResilience",
+  "description": "You are Jackson, hired mercenary ordered to kill drug mafia Michael. 125 guns, 35 vehicles, 70 quests, Zen economy. Optimized for Galaxy F15 5G.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0a0e13",
+  "theme_color": "#00ff88",
+  "orientation": "landscape",
+  "icons": [
+    {
+      "src": "assets/images/references/tactical-mercenary-soldier-stealth-black-1.jpg",
+      "sizes": "192x192",
+      "type": "image/jpeg"
+    }
+  ]
+}
