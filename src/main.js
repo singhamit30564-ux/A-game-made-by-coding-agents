@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import { GUNS } from './data/guns.js';
 import { VEHICLES } from './data/vehicles.js';
 import { MAIN_QUESTS, SIDE_QUESTS } from './data/quests.js';
+import { CutsceneManager } from './engine/cutscene.js';
+import { MobileController, setThreeInstance } from './engine/mobile.js';
 
 // --- GLOBALS ---
 let scene, camera, renderer, clock;
@@ -17,9 +19,12 @@ let activeQuests = [], completedQuests = new Set();
 let inVehicle = null, vehicleVelocity = 0;
 let quality = 'low';
 let drawDistance = 600;
-let sensitivity = 1;
+let sensitivity = 1.2;
 let gameStarted = false;
 let wantedLevel = 0;
+let cutsceneManager, mobileController;
+let isAiming = false;
+let cutscenesEnabled = true;
 
 // UI refs
 const hud = document.getElementById('hud');
@@ -29,8 +34,9 @@ const loading = document.getElementById('loading');
 
 // --- INIT ---
 async function init() {
-  updateLoad(10, "LOADING THREE.JS ENGINE...");
+  updateLoad(10, "LOADING THREE.JS + CUTSCENE ENGINE...");
   clock = new THREE.Clock();
+  setThreeInstance(THREE);
 
   // Scene
   scene = new THREE.Scene();
@@ -49,7 +55,7 @@ async function init() {
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   document.body.appendChild(renderer.domElement);
 
-  updateLoad(30, "GENERATING CARTEL CITY...");
+  updateLoad(30, "GENERATING CARTEL CITY + CUTSCENE CAMERAS...");
 
   // Lights
   const ambient = new THREE.AmbientLight(0x404060, 0.6);
@@ -68,7 +74,7 @@ async function init() {
 
   // World
   generateWorld();
-  updateLoad(60, "SPAWNING ARSENAL & FLEET...");
+  updateLoad(50, "SPAWNING ARSENAL & FLEET...");
 
   // Player
   createPlayer();
@@ -76,21 +82,26 @@ async function init() {
   generateVehicles();
   setupAmmo();
 
-  updateLoad(80, "LOADING 70 MISSIONS...");
-  setupQuests();
+  updateLoad(70, "LOADING 70 MISSIONS + 6 CUTSCENES...");
 
-  updateLoad(90, "OPTIMIZING FOR GALAXY F15...");
+  // Managers
+  cutsceneManager = new CutsceneManager(camera, scene, renderer);
+  mobileController = new MobileController();
+
+  setupQuests();
+  updateLoad(85, "INITIALIZING MOBILE AAA CONTROLS...");
+
   setupInput();
   setupUI();
   setupMinimap();
 
-  updateLoad(100, "READY - JACKSON DEPLOYED");
+  updateLoad(100, "READY - JACKSON DEPLOYED | CUTSCENES + MOBILE READY");
   setTimeout(()=>{
     loading.style.opacity='0';
     setTimeout(()=>loading.style.display='none',800);
-  },500);
+  },600);
 
-  // Start loop but paused until menu
+  // Start loop
   animate();
 }
 
@@ -99,21 +110,18 @@ function updateLoad(pct, text){
   loadText.textContent = text;
 }
 
-// --- WORLD GENERATION - Low poly city ---
+// --- WORLD GENERATION ---
 function generateWorld(){
-  // Ground - large plane with vertex colors for roads
   const groundGeo = new THREE.PlaneGeometry(3000,3000,30,30);
   const colors = [];
   const pos = groundGeo.attributes.position;
   for(let i=0;i<pos.count;i++){
     const x = pos.getX(i), y = pos.getY(i);
-    // Road pattern
     const isRoadX = Math.abs(x % 200) < 20;
     const isRoadZ = Math.abs(y % 200) < 20;
     if(isRoadX || isRoadZ){
       colors.push(0.15,0.15,0.16);
     } else {
-      // Slight variation
       const v = 0.08 + Math.random()*0.05;
       colors.push(v*0.6, v*0.8, v*0.5);
     }
@@ -125,7 +133,6 @@ function generateWorld(){
   ground.receiveShadow = true;
   scene.add(ground);
 
-  // Water for ships
   const waterGeo = new THREE.PlaneGeometry(1000,1000);
   const waterMat = new THREE.MeshStandardMaterial({color:0x0a4a6a, roughness:0.2, metalness:0.3, transparent:true, opacity:0.8});
   const water = new THREE.Mesh(waterGeo, waterMat);
@@ -133,7 +140,6 @@ function generateWorld(){
   water.position.set(900,-2,-500);
   scene.add(water);
 
-  // Buildings - 80 low poly boxes
   const buildingMats = [
     new THREE.MeshLambertMaterial({color:0x2a2a3a}),
     new THREE.MeshLambertMaterial({color:0x3a3a4a}),
@@ -147,7 +153,6 @@ function generateWorld(){
     const geo = new THREE.BoxGeometry(w,h,d);
     const mat = buildingMats[Math.floor(Math.random()*buildingMats.length)];
     const mesh = new THREE.Mesh(geo, mat);
-    // Grid placement avoiding roads
     let x,z;
     do{
       x = (Math.random()-0.5)*2000;
@@ -158,7 +163,6 @@ function generateWorld(){
     mesh.receiveShadow = true;
     scene.add(mesh);
     buildings.push({mesh, x,z,w,d,h, type: Math.random()<0.1?'high':'normal'});
-    // Windows - emissive planes
     if(Math.random()<0.6 && quality!=='low'){
       const winGeo = new THREE.PlaneGeometry(w*0.6, h*0.7);
       const winMat = new THREE.MeshBasicMaterial({color:0xffffaa, transparent:true, opacity:0.15});
@@ -168,7 +172,6 @@ function generateWorld(){
     }
   }
 
-  // Trees / props - instanced for performance
   const treeGeo = new THREE.ConeGeometry(5,20,6);
   const treeMat = new THREE.MeshLambertMaterial({color:0x1a4a1a});
   const trunkGeo = new THREE.CylinderGeometry(1,1.5,8,6);
@@ -186,48 +189,51 @@ function generateWorld(){
     scene.add(treeGroup);
   }
 
-  // Sky dome
   const skyGeo = new THREE.SphereGeometry(1500,16,12);
   const skyMat = new THREE.MeshBasicMaterial({color:0x0a1420, side:THREE.BackSide});
   const sky = new THREE.Mesh(skyGeo, skyMat);
   scene.add(sky);
 
-  // Airstrip
   const stripGeo = new THREE.PlaneGeometry(800,80);
   const stripMat = new THREE.MeshLambertMaterial({color:0x1a1a1a});
   const strip = new THREE.Mesh(stripGeo, stripMat);
   strip.rotation.x=-Math.PI/2;
   strip.position.set(900,0.1,300);
   scene.add(strip);
-  // Strip lines
   for(let i=0;i<10;i++){
     const line = new THREE.Mesh(new THREE.PlaneGeometry(30,4), new THREE.MeshBasicMaterial({color:0xffffff}));
     line.rotation.x=-Math.PI/2;
     line.position.set(900-350+i*80,0.2,300);
     scene.add(line);
   }
+
+  // Throne room for final cutscene
+  const throneGeo = new THREE.BoxGeometry(20,15,20);
+  const throneMat = new THREE.MeshStandardMaterial({color:0x2a1a0a, roughness:0.8});
+  const throneRoom = new THREE.Mesh(throneGeo, throneMat);
+  throneRoom.position.set(0,7.5,1000);
+  scene.add(throneRoom);
+  // Throne
+  const throne = new THREE.Mesh(new THREE.BoxGeometry(3,4,3), new THREE.MeshStandardMaterial({color:0xffcc00, metalness:0.8, roughness:0.2}));
+  throne.position.set(0,2,1000);
+  scene.add(throne);
 }
 
-// --- PLAYER ---
 function createPlayer(){
   playerGroup = new THREE.Group();
-  // Low poly Jackson - capsule + boxes
   const bodyGeo = new THREE.CapsuleGeometry(0.5,1.6,4,8);
   const bodyMat = new THREE.MeshStandardMaterial({color:0x1a2a3a, roughness:0.7});
   playerMesh = new THREE.Mesh(bodyGeo, bodyMat);
   playerMesh.position.y=1.3;
   playerMesh.castShadow=true;
   playerGroup.add(playerMesh);
-  // Head
   const head = new THREE.Mesh(new THREE.SphereGeometry(0.4,8,8), new THREE.MeshStandardMaterial({color:0xd2b48c}));
   head.position.y=2.4;
   playerGroup.add(head);
-  // Gun placeholder
   const gunMesh = new THREE.Mesh(new THREE.BoxGeometry(0.1,0.1,0.8), new THREE.MeshStandardMaterial({color:0x111111}));
   gunMesh.position.set(0.4,1.2,0.5);
   gunMesh.name='gunMesh';
   playerGroup.add(gunMesh);
-
   playerGroup.position.set(0,0,0);
   scene.add(playerGroup);
   player = playerGroup;
@@ -239,7 +245,6 @@ function setupAmmo(){
   });
 }
 
-// --- ENEMIES ---
 function generateEnemies(){
   const enemyGeo = new THREE.CapsuleGeometry(0.45,1.5,4,8);
   for(let i=0;i<28;i++){
@@ -248,14 +253,12 @@ function generateEnemies(){
     mesh.castShadow=true;
     const group = new THREE.Group();
     group.add(mesh);
-    // Health bar sprite
     const canvas = document.createElement('canvas'); canvas.width=64; canvas.height=8;
     const ctx = canvas.getContext('2d'); ctx.fillStyle='#f00'; ctx.fillRect(0,0,64,8);
     const tex = new THREE.CanvasTexture(canvas);
     const sprite = new THREE.Sprite(new THREE.SpriteMaterial({map:tex}));
     sprite.position.y=3; sprite.scale.set(2,0.3,1);
     group.add(sprite);
-
     let x,z;
     do{
       x=(Math.random()-0.5)*1600;
@@ -263,9 +266,8 @@ function generateEnemies(){
     }while(Math.hypot(x,z)<150);
     group.position.set(x,1.2,z);
     scene.add(group);
-    enemies.push({group, mesh, health:100, maxHealth:100, state:'patrol', targetPos:new THREE.Vector3(x,z).add(new THREE.Vector3((Math.random()-0.5)*100,0,(Math.random()-0.5)*100)), lastShot:0, sprite, isBoss:i===0});
+    enemies.push({group, mesh, health:100, maxHealth:100, state:'patrol', targetPos:new THREE.Vector3((Math.random()-0.5)*1600,0,(Math.random()-0.5)*1600), lastShot:0, sprite, isBoss:i===0});
     if(i===0){
-      // Michael - final boss bigger red
       group.scale.set(1.2,1.2,1.2);
       mesh.material.color.set(0xffcc00);
       mesh.material.emissive = new THREE.Color(0x331100);
@@ -273,9 +275,8 @@ function generateEnemies(){
   }
 }
 
-// --- VEHICLES ---
 function generateVehicles(){
-  VEHICLES.forEach((vData, idx)=>{
+  VEHICLES.forEach((vData)=>{
     const color = new THREE.Color().setHSL(Math.random(),0.7,0.5);
     let geo, mat;
     if(vData.type==='Car' || vData.type==='Heavy'){
@@ -301,7 +302,7 @@ function generateVehicles(){
       scene.add(g);
       vehicles.push({group:g, data:vData, x:g.position.x, z:g.position.z, occupied:false});
       return;
-    } else { // Plane/Jet
+    } else {
       geo = new THREE.BoxGeometry(12,2,16);
       mat = new THREE.MeshStandardMaterial({color:0xdddddd});
     }
@@ -323,7 +324,6 @@ function generateVehicles(){
   });
 }
 
-// --- QUESTS ---
 function setupQuests(){
   activeQuests = [MAIN_QUESTS[0]];
   updateQuestHUD();
@@ -331,18 +331,64 @@ function setupQuests(){
 
 function updateQuestHUD(){
   const hudEl = document.getElementById('questHud');
+  if(!hudEl) return;
   hudEl.innerHTML='';
   activeQuests.slice(0,2).forEach(q=>{
     const div = document.createElement('div');
     div.className='quest-card';
-    div.innerHTML=`<h4>${q.type.toUpperCase()} - ${q.title}</h4><p>${q.desc}</p>${q.objectives.map((o,i)=>`<div class="obj ${i===0?'':'done'}">${o}</div>`).join('')}<div style="margin-top:6px;color:var(--zen);font-family:'Orbitron';font-size:11px">REWARD: ${q.reward} ZEN</div>`;
+    div.innerHTML=`<h4>${q.type.toUpperCase()} - ${q.title}</h4><p>${q.desc}</p>${q.objectives.map((o,i)=>`<div class="obj ${i===0?'':'done'}">${o}</div>`).join('')}<div style="margin-top:6px;color:var(--zen);font-family:'Orbitron';font-size:10px">REWARD: ${q.reward} ZEN ${q.id>=27?' + CUTSCENE':''}</div>`;
+    div.addEventListener('click', ()=>{
+      if(q.id===1 && cutscenesEnabled) playCutscene('contract');
+      else if(q.id===6) playCutscene('sniper');
+      else if(q.id===14) playCutscene('yacht');
+      else if(q.id===27) playCutscene('finalIntel');
+      else if(q.id===30) playCutscene('endgame');
+    });
     hudEl.appendChild(div);
   });
 }
 
+// --- CUTSCENES ---
+function playCutscene(key){
+  if(!cutscenesEnabled || !cutsceneManager) return;
+  if(cutsceneManager.isPlaying()) return;
+  // Save player pos
+  const savedPos = player.position.clone();
+  const savedYaw = camYaw;
+  const savedPitch = camPitch;
+
+  document.getElementById('csProgress').style.display='block';
+  cutsceneManager.play(key, ()=>{
+    document.getElementById('csProgress').style.display='none';
+    document.getElementById('csProgress').style.width='0%';
+    // Restore
+    player.position.copy(savedPos);
+    camYaw = savedYaw;
+    camPitch = savedPitch;
+    if(key==='endgame'){
+      // If endgame cutscene ends, kill Michael
+      const michael = enemies.find(e=>e.isBoss);
+      if(michael && michael.health>0){
+        michael.health=0;
+        killEnemy(michael);
+      }
+    }
+  });
+}
+
+window.playCutsceneDemo = ()=>{
+  const keys = ['intro','contract','sniper','yacht','finalIntel','endgame'];
+  const random = keys[Math.floor(Math.random()*keys.length)];
+  playCutscene(random);
+};
+
 // --- INPUT ---
 function setupInput(){
   window.addEventListener('keydown', e=>{
+    if(cutsceneManager && cutsceneManager.isPlaying()){
+      if(e.code==='Space') cutsceneManager.end();
+      return;
+    }
     keys[e.code]=true;
     if(e.code==='KeyC'){ isCrouching=!isCrouching; isStealth=isCrouching; }
     if(e.code==='KeyR'){ reload(); }
@@ -351,16 +397,22 @@ function setupInput(){
     if(e.code==='KeyG'){ placeMine(); }
     if(e.code==='Tab'){ e.preventDefault(); toggleModal('armouryModal'); }
     if(e.code==='KeyM'){ toggleModal('questModal'); }
-    if(e.code==='Escape'){ closeAllModals(); }
+    if(e.code==='KeyV'){ playCutscene('intro'); }
+    if(e.code==='Escape'){ closeAllModals(); if(cutsceneManager) cutsceneManager.end(); }
     if(e.code.match(/Digit[1-4]/)){ switchWeapon(parseInt(e.code[5])-1); }
+    if(e.code==='KeyF'){ isAiming=!isAiming; document.getElementById('crosshair').classList.toggle('aiming', isAiming); }
   });
-  window.addEventListener('keyup', e=>keys[e.code]=false);
+  window.addEventListener('keyup', e=>{
+    keys[e.code]=false;
+    if(e.code==='ShiftLeft') isSprinting=false;
+  });
 
-  // Mouse look - pointer lock
   renderer.domElement.addEventListener('click', ()=>{
     if(!gameStarted) return;
     if(document.querySelector('.modal.active')) return;
+    if(cutsceneManager && cutsceneManager.isPlaying()) return;
     if(inVehicle) return;
+    if(mobileController && mobileController.isMobile) return; // Don't lock on mobile
     renderer.domElement.requestPointerLock();
   });
   document.addEventListener('pointerlockchange', ()=>{
@@ -371,51 +423,49 @@ function setupInput(){
     }
   });
   function onMouseMove(e){
+    if(cutsceneManager && cutsceneManager.isPlaying()) return;
     camYaw -= e.movementX * 0.002 * sensitivity;
     camPitch -= e.movementY * 0.002 * sensitivity;
     camPitch = Math.max(-1.2, Math.min(1.2, camPitch));
   }
 
   renderer.domElement.addEventListener('mousedown', e=>{
+    if(cutsceneManager && cutsceneManager.isPlaying()) return;
     if(e.button===0){ mouse.down=true; shoot(); }
+    if(e.button===2){ isAiming=true; document.getElementById('crosshair').classList.add('aiming'); }
   });
-  window.addEventListener('mouseup', e=>{ if(e.button===0) mouse.down=false; });
+  window.addEventListener('mouseup', e=>{
+    if(e.button===0) mouse.down=false;
+    if(e.button===2){ isAiming=false; document.getElementById('crosshair').classList.remove('aiming'); }
+  });
+  renderer.domElement.addEventListener('contextmenu', e=>e.preventDefault());
 
-  // Mobile joystick
-  const joy = document.getElementById('joystick');
-  const knob = document.getElementById('joyKnob');
-  if(joy){
-    let joyActive=false, joyStart={x:0,y:0};
-    joy.addEventListener('touchstart', e=>{
-      joyActive=true;
-      const t=e.touches[0];
-      joyStart={x:t.clientX,y:t.clientY};
-      e.preventDefault();
-    });
-    joy.addEventListener('touchmove', e=>{
-      if(!joyActive) return;
-      const t=e.touches[0];
-      const dx=t.clientX-joyStart.x, dy=t.clientY-joyStart.y;
-      const dist=Math.min(50,Math.hypot(dx,dy));
-      const ang=Math.atan2(dy,dx);
-      knob.style.transform=`translate(calc(-50% + ${Math.cos(ang)*dist}px), calc(-50% + ${Math.sin(ang)*dist}px))`;
-      // Map to keys
-      keys['KeyW']=dy<-10;
-      keys['KeyS']=dy>10;
-      keys['KeyA']=dx<-10;
-      keys['KeyD']=dx>10;
-      e.preventDefault();
-    });
-    joy.addEventListener('touchend', ()=>{
-      joyActive=false;
-      knob.style.transform='translate(-50%,-50%)';
-      keys['KeyW']=keys['KeyA']=keys['KeyS']=keys['KeyD']=false;
-    });
-    document.getElementById('mShoot').addEventListener('touchstart', e=>{shoot(); e.preventDefault();});
-    document.getElementById('mJump').addEventListener('touchstart', e=>{keys['Space']=true; setTimeout(()=>keys['Space']=false,100); e.preventDefault();});
-    document.getElementById('mReload').addEventListener('touchstart', e=>{reload(); e.preventDefault();});
-    document.getElementById('mVehicle').addEventListener('touchstart', e=>{tryEnterVehicle(); e.preventDefault();});
-  }
+  // Mobile bindings are handled in MobileController, but we bind actions here
+  setTimeout(()=>{
+    const bind = (id, fn)=>{
+      const el=document.getElementById(id);
+      if(el){
+        el.addEventListener('touchstart', e=>{ fn(); if(mobileController) mobileController.vibrate(20); e.preventDefault(); }, {passive:false});
+        el.addEventListener('mousedown', e=>{ fn(); e.preventDefault(); });
+      }
+    };
+    bind('mShoot', ()=>shoot());
+    bind('mJump', ()=>{ keys['Space']=true; setTimeout(()=>keys['Space']=false,150); });
+    bind('mCrouch', ()=>{ isCrouching=!isCrouching; isStealth=isCrouching; });
+    bind('mReload', ()=>reload());
+    bind('mSprint', ()=>{ isSprinting=!isSprinting; });
+    bind('mGrenade', ()=>throwGrenade());
+    bind('mMine', ()=>placeMine());
+    bind('mVehicle', ()=>tryEnterVehicle());
+    bind('mWeapon', ()=>switchWeapon((GUNS.findIndex(g=>g.id===currentGunId)+1)%4));
+    bind('mAim', ()=>{ isAiming=!isAiming; document.getElementById('crosshair').classList.toggle('aiming', isAiming); });
+    bind('mMap', ()=>toggleModal('questModal'));
+    bind('mArmoury', ()=>toggleModal('armouryModal'));
+    bind('mCutscene', ()=>playCutscene('intro'));
+    bind('mSettings', ()=>toggleModal('settingsModal'));
+    bind('hudCutscene', ()=>playCutscene('intro'));
+    bind('hudMobile', ()=>toggleModal('mobileModal'));
+  },1000);
 
   window.addEventListener('resize', ()=>{
     camera.aspect=innerWidth/innerHeight;
@@ -431,6 +481,7 @@ function switchWeapon(slot){
     currentGunId=owned[slot];
     updateAmmoUI();
     notify(`EQUIPPED: ${GUNS.find(g=>g.id===currentGunId).name}`);
+    if(mobileController) mobileController.vibrate(30);
   }
 }
 
@@ -443,18 +494,20 @@ function reload(){
   const take = Math.min(need, a.reserve);
   a.reserve-=take; a.cur+=take;
   updateAmmoUI();
-  // anim
   const gm = playerGroup.getObjectByName('gunMesh');
   if(gm){ gm.rotation.x=0.5; setTimeout(()=>gm.rotation.x=0,200); }
+  if(mobileController) mobileController.vibrate(20);
 }
 
 function shoot(){
   if(!gameStarted) return;
+  if(cutsceneManager && cutsceneManager.isPlaying()) return;
   if(inVehicle){
-    // Vehicle weapon
     const v = vehicles.find(v=>v.occupied);
     if(v && (v.data.type==='Tank' || v.data.type==='Heavy')){
-      fireProjectile(v.group.position.clone().add(new THREE.Vector3(0,2,5)), camera.getWorldDirection(new THREE.Vector3()), 500, true);
+      const dir = new THREE.Vector3(); v.group.getWorldDirection(dir);
+      fireProjectile(v.group.position.clone().add(new THREE.Vector3(0,2,5)), dir, 500, true);
+      if(mobileController) mobileController.vibrate(50);
     }
     return;
   }
@@ -465,50 +518,55 @@ function shoot(){
   a.cur--;
   updateAmmoUI();
 
-  // Raycast from camera
-  const dir = new THREE.Vector3();
+  // Auto-aim for mobile
+  let dir = new THREE.Vector3();
   camera.getWorldDirection(dir);
+  if(mobileController && mobileController.isMobile && mobileController.autoAim){
+    const target = mobileController.getAutoAimTarget(camera, enemies, 80);
+    if(target){
+      dir = new THREE.Vector3().subVectors(target.group.position.clone().add(new THREE.Vector3(0,1.2,0)), camera.position).normalize();
+      // Slight assist, not full snap
+      const camDir = new THREE.Vector3(); camera.getWorldDirection(camDir);
+      dir.lerp(camDir, 0.3).normalize();
+      // Visual feedback
+      document.getElementById('crosshair').classList.add('aiming');
+      setTimeout(()=>{ if(!isAiming) document.getElementById('crosshair').classList.remove('aiming'); },200);
+    }
+  }
+
   const origin = camera.position.clone();
   const ray = new THREE.Raycaster(origin, dir, 0, gun.range);
   const hits = ray.intersectObjects(enemies.map(e=>e.group), true);
-  // Also check buildings? simplified
   if(hits.length>0){
     const hit = hits[0];
-    // Find enemy
-    const enemy = enemies.find(e=> e.group===hit.object.parent || e.group.children.includes(hit.object) || e.group===hit.object);
+    const enemy = enemies.find(e=> e.group===hit.object.parent || e.group.children.includes(hit.object) || e.group===hit.object || hit.object.parent?.parent===e.group);
     if(enemy){
-      enemy.health -= gun.dmg * (isStealth?1.5:1);
+      enemy.health -= gun.dmg * (isStealth?1.5:1) * (isAiming?1.2:1);
       updateEnemyHealth(enemy);
       if(enemy.health<=0){
         killEnemy(enemy);
       } else {
-        // Hit effect
         spawnParticle(hit.point, 0xffaa00);
       }
+      if(mobileController) mobileController.vibrate(15);
     }
   }
 
-  // Projectile visual for launchers
   if(gun.cat==='Launcher' || gun.cat==='Heavy' || gun.id>=96){
     fireProjectile(player.position.clone().add(new THREE.Vector3(0,1.2,0)), dir, gun.dmg, true);
   } else {
-    // Muzzle flash
     spawnParticle(player.position.clone().add(dir.clone().multiplyScalar(1)).add(new THREE.Vector3(0,1.2,0)), 0xffffaa, 0.1);
-    // Tracer
-    const tracerGeo = new THREE.BufferGeometry().setFromPoints([origin, origin.clone().add(dir.multiplyScalar(30))]);
+    const tracerGeo = new THREE.BufferGeometry().setFromPoints([origin, origin.clone().add(dir.clone().multiplyScalar(30))]);
     const tracerMat = new THREE.LineBasicMaterial({color:0xffffaa, transparent:true, opacity:0.8});
     const line = new THREE.Line(tracerGeo, tracerMat);
     scene.add(line);
     setTimeout(()=>scene.remove(line),40);
   }
 
-  // Recoil
-  camPitch += (Math.random()-0.5)*0.02 * (gun.dmg/50);
-  // Sound placeholder - visual shake
+  camPitch += (Math.random()-0.5)*0.02 * (gun.dmg/50) * (isAiming?0.5:1);
   renderer.domElement.style.transform=`translate(${(Math.random()-0.5)*2}px,${(Math.random()-0.5)*2}px)`;
   setTimeout(()=>renderer.domElement.style.transform='',30);
 
-  // Wanted
   if(!isStealth){ wantedLevel = Math.min(5, wantedLevel+0.2); updateWanted(); }
 }
 
@@ -522,9 +580,10 @@ function fireProjectile(pos, dir, dmg, explosive){
 }
 
 function throwGrenade(){
-  const gun = GUNS.find(g=>g.id===111); // frag
-  if(!ammo[111] || ammo[111].cur<=0) return;
-  ammo[111].cur--;
+  if(cutsceneManager && cutsceneManager.isPlaying()) return;
+  const id=111;
+  if(!ammo[id] || ammo[id].cur<=0) { notify("NO GRENADES!"); return; }
+  ammo[id].cur--;
   const dir = new THREE.Vector3(); camera.getWorldDirection(dir);
   const pos = player.position.clone().add(new THREE.Vector3(0,1.5,0)).add(dir.clone().multiplyScalar(1));
   const geo = new THREE.SphereGeometry(0.2,8,8);
@@ -533,12 +592,14 @@ function throwGrenade(){
   scene.add(mesh);
   projectiles.push({mesh, dir:dir.clone().add(new THREE.Vector3(0,0.3,0)), speed:15, dmg:250, explosive:true, life:3, grenade:true, vel:new THREE.Vector3().copy(dir).multiplyScalar(15).add(new THREE.Vector3(0,8,0))});
   notify("GRENADE THROWN!");
+  if(mobileController) mobileController.vibrate(30);
 }
 
 function placeMine(){
+  if(cutsceneManager && cutsceneManager.isPlaying()) return;
   const mineTypes = [113,114];
   const id = mineTypes[Math.floor(Math.random()*mineTypes.length)];
-  if(!ammo[id] || ammo[id].cur<=0) return;
+  if(!ammo[id] || ammo[id].cur<=0) { notify("NO MINES!"); return; }
   ammo[id].cur--;
   const geo = new THREE.CylinderGeometry(0.5,0.5,0.2,8);
   const mat = new THREE.MeshStandardMaterial({color:id===114?0x331111:0x333333});
@@ -558,18 +619,15 @@ function spawnParticle(pos, color=0xffffff, size=0.3){
   particles.push({mesh, vel:new THREE.Vector3((Math.random()-0.5)*4,Math.random()*6, (Math.random()-0.5)*4), life:1, decay:0.02+Math.random()*0.03});
 }
 
-// --- ENEMY AI ---
 function updateEnemies(dt){
+  if(cutsceneManager && cutsceneManager.isPlaying()) return;
   enemies.forEach(e=>{
     if(e.health<=0) return;
     const distToPlayer = e.group.position.distanceTo(player.position);
-    // LOD - skip far enemies
     if(distToPlayer>drawDistance) return;
 
-    // Check mines
     mines.forEach((m,i)=>{
       if(m.mesh.position.distanceTo(e.group.position)<m.radius){
-        // Explode mine
         explode(m.mesh.position, m.dmg, m.radius);
         scene.remove(m.mesh);
         mines.splice(i,1);
@@ -579,26 +637,23 @@ function updateEnemies(dt){
     });
 
     if(distToPlayer<40){
-      // Chase
       const dir = new THREE.Vector3().subVectors(player.position, e.group.position).normalize();
       dir.y=0;
       e.group.position.add(dir.multiplyScalar(dt* (e.isBoss?4:2.5)));
       e.group.lookAt(player.position);
-      // Shoot
       if(clock.elapsedTime - e.lastShot > (e.isBoss?0.4:1.2)){
         e.lastShot=clock.elapsedTime;
         if(Math.random()<0.6){
-          // Damage player
           const dmg = e.isBoss?25:10;
           if(armor>0){ armor=Math.max(0,armor-dmg*0.6); health=Math.max(0,health-dmg*0.4); }
           else health=Math.max(0,health-dmg);
           updateHealthUI();
           spawnParticle(player.position.clone().add(new THREE.Vector3(0,1,0)), 0xff0000,0.15);
           if(health<=0) playerDeath();
+          if(mobileController) mobileController.vibrate(40);
         }
       }
     } else if(e.state==='patrol'){
-      // Patrol
       const toTarget = new THREE.Vector3().subVectors(e.targetPos, e.group.position);
       if(toTarget.length()<3){
         e.targetPos.set((Math.random()-0.5)*1600,0,(Math.random()-0.5)*1600);
@@ -631,17 +686,15 @@ function killEnemy(e){
   for(let i=0;i<6;i++) spawnParticle(e.group.position.clone(), 0xffaa00,0.3);
   if(e.isBoss){
     notify("MICHAEL ELIMINATED! MISSION COMPLETE!");
+    if(cutscenesEnabled) setTimeout(()=>playCutscene('endgame'), 1000);
     activeQuests.forEach(q=>{ if(q.id===30) completeQuest(q); });
   } else {
-    // Quest progress
     activeQuests.forEach(q=>{
       if(q.objectives[0].includes('Kill') || q.objectives[0].includes('Eliminate')){
-        // simplified complete
         if(Math.random()<0.3) completeQuest(q);
       }
     });
   }
-  // Respawn after time
   setTimeout(()=>{
     if(!e.isBoss){
       e.health=100;
@@ -655,7 +708,6 @@ function killEnemy(e){
 function explode(pos, dmg, radius){
   spawnParticle(pos, 0xff4400, radius*0.3);
   for(let i=0;i<20;i++) spawnParticle(pos.clone(), Math.random()<0.5?0xffaa00:0xff4400, 0.4+Math.random()*0.6);
-  // Damage
   enemies.forEach(e=>{
     if(e.group.position.distanceTo(pos)<radius){
       e.health-=dmg * (1 - e.group.position.distanceTo(pos)/radius);
@@ -669,19 +721,18 @@ function explode(pos, dmg, radius){
     else health=Math.max(0,health-d);
     updateHealthUI();
   }
-  // Camera shake
   const dist = player.position.distanceTo(pos);
   if(dist<radius*2){
     const intensity = (1-dist/(radius*2))*5;
     camera.position.x+= (Math.random()-0.5)*intensity;
     camera.position.y+= (Math.random()-0.5)*intensity;
   }
+  if(mobileController) mobileController.vibrate([30,50,30]);
 }
 
-// --- VEHICLES ---
 function tryEnterVehicle(){
+  if(cutsceneManager && cutsceneManager.isPlaying()) return;
   if(inVehicle){
-    // Exit
     const v = vehicles.find(v=>v.occupied);
     if(v){
       v.occupied=false;
@@ -689,10 +740,10 @@ function tryEnterVehicle(){
       player.visible=true;
       player.position.copy(v.group.position).add(new THREE.Vector3(5,0,0));
       notify(`EXITED ${v.data.name}`);
+      if(mobileController) mobileController.vibrate(20);
     }
     return;
   }
-  // Find nearest
   let nearest=null, minDist=8;
   vehicles.forEach(v=>{
     const d = v.group.position.distanceTo(player.position);
@@ -702,7 +753,8 @@ function tryEnterVehicle(){
     nearest.occupied=true;
     inVehicle=nearest;
     player.visible=false;
-    notify(`ENTERED ${nearest.data.name} - WASD DRIVE, E EXIT, LMB FIRE`);
+    notify(`ENTERED ${nearest.data.name} - WASD DRIVE, E EXIT, LMB FIRE | Mobile: left stick drive`);
+    if(mobileController) mobileController.vibrate(40);
   }
 }
 
@@ -714,10 +766,9 @@ function updateVehicle(dt){
 
   if(v.data.type==='Car' || v.data.type==='Tank' || v.data.type==='Heavy'){
     vehicleVelocity += inputForward * dt * 30;
-    vehicleVelocity *= 0.98; // friction
+    vehicleVelocity *= 0.98;
     v.group.position.add(v.group.getWorldDirection(new THREE.Vector3()).multiplyScalar(vehicleVelocity*dt));
     v.group.rotation.y += inputSteer * dt * 1.5 * (vehicleVelocity>0?1:-1);
-    // Keep on ground
     v.group.position.y = v.data.type==='Tank'?1.5:1;
   } else if(v.data.type==='Bike'){
     vehicleVelocity += inputForward * dt * 40;
@@ -740,13 +791,10 @@ function updateVehicle(dt){
     v.group.rotation.y += inputSteer * dt * 0.6;
     if(keys['Space']) v.group.position.y += dt*20;
     if(keys['ShiftLeft']) v.group.position.y -= dt*20;
-    // Auto lift
     if(v.group.position.y<20) v.group.position.y+=dt*10;
   }
 
-  // Update player pos to vehicle
   player.position.copy(v.group.position);
-  // Check mine collisions for vehicle
   mines.forEach((m,i)=>{
     if(m.mesh.position.distanceTo(v.group.position)<m.radius+3){
       explode(m.mesh.position, m.dmg*1.5, m.radius*1.5);
@@ -757,10 +805,22 @@ function updateVehicle(dt){
   });
 }
 
-// --- PLAYER MOVEMENT ---
 function updatePlayer(dt){
+  if(cutsceneManager && cutsceneManager.isPlaying()) return;
   if(inVehicle) return;
-  const speed = isCrouching?1.8: isSprinting?6.5:4.0;
+
+  // Mobile input
+  if(mobileController){
+    mobileController.getMoveInput(keys);
+    const look = mobileController.getLookInput();
+    if(Math.abs(look.x)>0.01 || Math.abs(look.y)>0.01){
+      camYaw -= look.x * 0.08 * sensitivity;
+      camPitch -= look.y * 0.08 * sensitivity;
+      camPitch = Math.max(-1.2, Math.min(1.2, camPitch));
+    }
+  }
+
+  const speed = isCrouching?1.8: isSprinting?6.5:4.0 * (isAiming?0.6:1);
   const forward = new THREE.Vector3();
   camera.getWorldDirection(forward); forward.y=0; forward.normalize();
   const right = new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0,1,0)).negate();
@@ -772,7 +832,6 @@ function updatePlayer(dt){
   if(keys['KeyD']) move.add(right);
   if(move.length()>0){
     move.normalize().multiplyScalar(speed*dt);
-    // Simple collision with buildings
     const nextPos = player.position.clone().add(move);
     let blocked=false;
     for(const b of buildings){
@@ -786,7 +845,6 @@ function updatePlayer(dt){
     isStealth = isCrouching || (move.length()<0.01);
   }
 
-  // Gravity / jump
   if(keys['Space'] && isGrounded){
     velocity.y=7;
     isGrounded=false;
@@ -799,10 +857,6 @@ function updatePlayer(dt){
     isGrounded=true;
   }
 
-  // Sprint key
-  isSprinting = !!keys['ShiftLeft'] && !isCrouching;
-
-  // Update stealth meter
   const stealthEl = document.getElementById('stealthMeter');
   if(stealthEl){
     if(isStealth){
@@ -815,23 +869,28 @@ function updatePlayer(dt){
   }
 }
 
-// --- CAMERA ---
 function updateCamera(dt){
+  if(cutsceneManager && cutsceneManager.isPlaying()){
+    cutsceneManager.update(dt);
+    const prog = document.getElementById('csProgress');
+    if(prog && cutsceneManager.current){
+      prog.style.width = (cutsceneManager.time / cutsceneManager.current.duration * 100)+'%';
+    }
+    return;
+  }
   if(inVehicle){
     const v = inVehicle.group;
     const offset = v.getWorldDirection(new THREE.Vector3()).negate().multiplyScalar(v.data.type==='Jet'?40:15).add(new THREE.Vector3(0, v.data.type==='Jet'?12:6,0));
     camera.position.lerp(v.position.clone().add(offset), dt*3);
     camera.lookAt(v.position.clone().add(new THREE.Vector3(0,3,0)));
   } else {
-    // Third person
-    const dist = isCrouching?2.5:4.5;
+    const dist = isAiming?2.0 : isCrouching?2.5:4.5;
     const height = isCrouching?1.0:1.7;
     const camPos = new THREE.Vector3(
       player.position.x + Math.sin(camYaw)*Math.cos(camPitch)*dist,
       player.position.y + height + Math.sin(camPitch)*dist,
       player.position.z + Math.cos(camYaw)*Math.cos(camPitch)*dist
     );
-    // Avoid clipping into buildings
     const ray = new THREE.Raycaster(player.position.clone().add(new THREE.Vector3(0,height,0)), camPos.clone().sub(player.position).normalize(),0,dist);
     const hits = ray.intersectObjects(buildings.map(b=>b.mesh));
     if(hits.length>0){
@@ -842,7 +901,6 @@ function updateCamera(dt){
   }
 }
 
-// --- PROJECTILES & PARTICLES ---
 function updateProjectiles(dt){
   for(let i=projectiles.length-1;i>=0;i--){
     const p = projectiles[i];
@@ -863,7 +921,6 @@ function updateProjectiles(dt){
         scene.remove(p.mesh);
         projectiles.splice(i,1);
       } else {
-        // Check enemy hit
         for(const e of enemies){
           if(e.health>0 && e.group.position.distanceTo(p.mesh.position)<2){
             if(p.explosive) explode(p.mesh.position, p.dmg, 8);
@@ -895,24 +952,25 @@ function updateProjectiles(dt){
   }
 }
 
-// --- UI ---
 function setupUI(){
   document.getElementById('playBtn').addEventListener('click', ()=>{
     document.getElementById('mainMenu').style.display='none';
     hud.style.display='block';
     gameStarted=true;
-    // Start with some zen and guns
     notify("DEPLOYED AS JACKSON - FIND MICHAEL");
-    notify("TIP: Press TAB for Armoury - 125 Guns");
+    notify("🎬 NEW: Press V for Cutscene | 📱 Mobile mode auto-detected");
     updateHealthUI(); updateZenUI(); updateAmmoUI(); updateWanted();
-    // Lock pointer after small delay
-    setTimeout(()=>renderer.domElement.requestPointerLock(),100);
+    setTimeout(()=>{
+      if(!mobileController.isMobile) renderer.domElement.requestPointerLock();
+      if(cutscenesEnabled) playCutscene('intro');
+    },300);
   });
 
+  document.getElementById('cutsceneBtn').addEventListener('click', ()=>playCutscene('intro'));
   document.getElementById('loadBtn').addEventListener('click', ()=>toggleModal('armouryModal'));
+  document.getElementById('mobileBtn').addEventListener('click', ()=>toggleModal('mobileModal'));
   document.getElementById('settingsBtn').addEventListener('click', ()=>toggleModal('settingsModal'));
 
-  // Armoury
   const gunGrid = document.getElementById('gunGrid');
   const filters = document.querySelectorAll('#gunFilters button');
   function renderGuns(filter='all'){
@@ -935,6 +993,7 @@ function setupUI(){
             zen-=g.price; ownedGuns.add(g.id); ammo[g.id]={cur:g.mag, reserve:g.mag*4};
             updateZenUI(); renderGuns(filter);
             notify(`PURCHASED ${g.name}`);
+            if(mobileController) mobileController.vibrate(50);
           }
         } else if(ownedGuns.has(g.id)){
           currentGunId=g.id; updateAmmoUI(); notify(`EQUIPPED ${g.name}`);
@@ -952,23 +1011,33 @@ function setupUI(){
   }));
   renderGuns('all');
 
-  // Vehicles list
   const vList = document.getElementById('vehicleList');
   VEHICLES.forEach(v=>{
     const div=document.createElement('div');
-    div.style.cssText='display:flex;justify-content:space-between;background:rgba(255,255,255,0.03);padding:6px 8px;border:1px solid rgba(255,255,255,0.06);font-size:11px';
+    div.style.cssText='display:flex;justify-content:space-between;background:rgba(255,255,255,0.03);padding:6px 8px;border:1px solid rgba(255,255,255,0.06);font-size:11px;border-radius:3px;cursor:pointer';
     div.innerHTML=`<span>${v.type} - ${v.name}</span><span style="color:var(--zen)">${v.price? '◉'+v.price: 'FREE'}</span>`;
     div.addEventListener('click', ()=>{
       if(v.price && zen<v.price){ notify(`NEED ${v.price} ZEN`); return; }
       if(v.price){ zen-=v.price; updateZenUI(); }
-      // Spawn near player
       const gv = vehicles.find(x=>x.data.id===v.id);
       if(gv){ gv.group.position.copy(player.position).add(new THREE.Vector3(10,0,0)); notify(`SPAWNED ${v.name}`); }
     });
     vList.appendChild(div);
   });
 
-  // Quests modal
+  // Cutscene list in armoury
+  const csList = document.getElementById('cutsceneList');
+  if(csList){
+    Object.keys(CUTSCENES).forEach(key=>{
+      const cs = CUTSCENES[key];
+      const div=document.createElement('div');
+      div.style.cssText='display:flex;justify-content:space-between;background:rgba(160,32,240,0.08);padding:6px 8px;border:1px solid rgba(160,32,240,0.15);font-size:11px;border-radius:3px;cursor:pointer';
+      div.innerHTML=`<span>🎬 ${cs.title}</span><span style="color:#a020f0">${cs.duration}s</span>`;
+      div.addEventListener('click', ()=>{ closeAllModals(); setTimeout(()=>playCutscene(key),300); });
+      csList.appendChild(div);
+    });
+  }
+
   const qList = document.getElementById('questList');
   const qFilters = document.querySelectorAll('[data-qfilter]');
   function renderQuests(filter='all'){
@@ -979,14 +1048,17 @@ function setupUI(){
     else if(filter==='Side') list=SIDE_QUESTS;
     else if(filter==='Active') list=activeQuests;
     else if(filter==='Done') list=[...MAIN_QUESTS,...SIDE_QUESTS].filter(q=>completedQuests.has(q.id));
+    else if(filter==='Cutscene') list=MAIN_QUESTS.filter(q=>[1,6,14,27,30].includes(q.id));
     list.forEach(q=>{
       const div=document.createElement('div');
       div.className='quest-card';
       const isActive = activeQuests.find(aq=>aq.id===q.id);
       const isDone = completedQuests.has(q.id);
-      div.style.borderLeftColor = isDone?'#666': isActive?'var(--zen)':'rgba(255,255,255,0.2)';
-      div.innerHTML=`<h4>${q.type} #${q.id} - ${q.title} ${isDone?'(DONE)':''} ${isActive?'(ACTIVE)':''}</h4><p>${q.desc}</p><div style="margin:6px 0">${q.objectives.map(o=>`<div class="obj ${isDone?'done':''}">${o}</div>`).join('')}</div><div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px"><span style="font-family:'Orbitron';font-size:11px;color:var(--zen)">REWARD: ${q.reward} ZEN</span><button class="btn secondary" style="padding:6px 12px;font-size:11px">${isActive?'TRACKING': isDone?'COMPLETED':'START'}</button></div><div style="font-size:10px;opacity:0.5;margin-top:4px">DIFF: ${q.difficulty} | LOC: ${q.location.x},${q.location.z}</div>`;
-      div.querySelector('button').addEventListener('click', ()=>{
+      const hasCutscene = [1,6,14,27,30].includes(q.id);
+      div.style.borderLeftColor = isDone?'#666': isActive?'var(--zen)': hasCutscene?'#a020f0':'rgba(255,255,255,0.2)';
+      div.innerHTML=`<h4>${q.type} #${q.id} - ${q.title} ${isDone?'(DONE)':''} ${isActive?'(ACTIVE)':''} ${hasCutscene?'🎬':''}</h4><p>${q.desc}</p><div style="margin:6px 0">${q.objectives.map(o=>`<div class="obj ${isDone?'done':''}">${o}</div>`).join('')}</div><div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;gap:6px"><span style="font-family:'Orbitron';font-size:10px;color:var(--zen)">REWARD: ${q.reward} ZEN</span><div style="display:flex;gap:4px"><button class="btn secondary" style="padding:4px 8px;font-size:10px">${isActive?'TRACKING': isDone?'DONE':'START'}</button>${hasCutscene?`<button class="btn secondary" style="padding:4px 8px;font-size:10px;background:rgba(160,32,240,0.15);border-color:rgba(160,32,240,0.3);color:#a020f0">🎬 CUTSCENE</button>`:''}</div></div><div style="font-size:9px;opacity:0.5;margin-top:4px">DIFF: ${q.difficulty} | LOC: ${q.location.x},${q.location.z}</div>`;
+      const btns = div.querySelectorAll('button');
+      btns[0].addEventListener('click', ()=>{
         if(isDone) return;
         if(!isActive){
           activeQuests.push(q);
@@ -994,8 +1066,18 @@ function setupUI(){
           updateQuestHUD();
           notify(`STARTED: ${q.title}`);
           renderQuests(filter);
+          if(hasCutscene && cutscenesEnabled){
+            const map = {1:'contract',6:'sniper',14:'yacht',27:'finalIntel',30:'endgame'};
+            if(map[q.id]) setTimeout(()=>playCutscene(map[q.id]),500);
+          }
         }
       });
+      if(btns[1]){
+        btns[1].addEventListener('click', ()=>{
+          const map = {1:'contract',6:'sniper',14:'yacht',27:'finalIntel',30:'endgame'};
+          if(map[q.id]){ closeAllModals(); setTimeout(()=>playCutscene(map[q.id]),300); }
+        });
+      }
       qList.appendChild(div);
     });
   }
@@ -1006,35 +1088,56 @@ function setupUI(){
   }));
   renderQuests('all');
 
-  // Settings
   document.getElementById('qualityLow').addEventListener('click', ()=>setQuality('low'));
   document.getElementById('qualityMed').addEventListener('click', ()=>setQuality('medium'));
   document.getElementById('qualityHigh').addEventListener('click', ()=>setQuality('high'));
   document.getElementById('qualityUltra').addEventListener('click', ()=>setQuality('ultra'));
   document.getElementById('drawDist').addEventListener('input', e=>{ drawDistance=parseInt(e.target.value); });
-  document.getElementById('sens').addEventListener('input', e=>{ sensitivity=parseFloat(e.target.value); });
+  document.getElementById('sens').addEventListener('input', e=>{ sensitivity=parseFloat(e.target.value); if(mobileController) mobileController.sensitivity=sensitivity; });
+  document.getElementById('fovSlider')?.addEventListener('input', e=>{ camera.fov=parseInt(e.target.value); camera.updateProjectionMatrix(); });
+
+  // Mobile settings
+  document.getElementById('toggleMobile')?.addEventListener('change', e=>{
+    document.body.classList.toggle('mobile-mode', e.target.checked);
+    if(mobileController) mobileController.isMobile = e.target.checked;
+  });
+  document.getElementById('toggleAutoAim')?.addEventListener('change', e=>{
+    if(mobileController) mobileController.autoAim = e.target.checked;
+  });
+  document.getElementById('toggleGyro')?.addEventListener('change', e=>{
+    const btn=document.getElementById('mGyro');
+    if(e.target.checked && btn) btn.click();
+  });
+  document.getElementById('toggleCutscenes')?.addEventListener('change', e=>{ cutscenesEnabled=e.target.checked; });
+  document.getElementById('toggleLetterbox')?.addEventListener('change', e=>{
+    // Handled in cutscene manager
+  });
+
+  // Import CUTSCENES for UI
+  window.CUTSCENES = CUTSCENES;
 }
 
 function showGunDetail(g){
   const el=document.getElementById('gunDetail');
   el.innerHTML=`
-    <h3 style="font-family:'Orbitron';color:var(--zen)">${g.name}</h3>
+    <h3 style="font-family:'Orbitron';color:var(--zen);font-size:13px">${g.name}</h3>
     <div style="margin:8px 0"><span class="rarity ${g.rarity}" style="position:static;padding:2px 8px">${g.rarity}</span> <span style="font-size:11px;opacity:0.6">${g.cat}</span></div>
-    <p style="font-size:13px;opacity:0.8;margin:10px 0">${g.desc}</p>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px">
-      <div style="background:rgba(255,255,255,0.05);padding:8px"><div style="font-size:10px;opacity:0.5">DAMAGE</div><div style="font-family:'Orbitron';color:var(--danger)">${g.dmg}</div><div class="bar-bg"><div class="bar-fill" style="width:${Math.min(100,g.dmg/5)}%;background:var(--danger)"></div></div></div>
-      <div style="background:rgba(255,255,255,0.05);padding:8px"><div style="font-size:10px;opacity:0.5">RANGE</div><div style="font-family:'Orbitron'">${g.range}m</div><div class="bar-bg"><div class="bar-fill" style="width:${Math.min(100,g.range/20)}%;background:var(--zen)"></div></div></div>
-      <div style="background:rgba(255,255,255,0.05);padding:8px"><div style="font-size:10px;opacity:0.5">FIRE RATE</div><div style="font-family:'Orbitron'">${g.rpm} RPM</div><div class="bar-bg"><div class="bar-fill" style="width:${Math.min(100,g.rpm/30)}%;background:#ffcc00"></div></div></div>
-      <div style="background:rgba(255,255,255,0.05);padding:8px"><div style="font-size:10px;opacity:0.5">ACCURACY</div><div style="font-family:'Orbitron'">${g.acc}%</div><div class="bar-bg"><div class="bar-fill" style="width:${g.acc}%;background:#00aaff"></div></div></div>
+    <p style="font-size:12px;opacity:0.8;margin:8px 0">${g.desc}</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:10px">
+      <div style="background:rgba(255,255,255,0.05);padding:6px;border-radius:3px"><div style="font-size:9px;opacity:0.5">DAMAGE</div><div style="font-family:'Orbitron';color:var(--danger);font-size:13px">${g.dmg}</div><div class="bar-bg"><div class="bar-fill" style="width:${Math.min(100,g.dmg/5)}%;background:var(--danger)"></div></div></div>
+      <div style="background:rgba(255,255,255,0.05);padding:6px;border-radius:3px"><div style="font-size:9px;opacity:0.5">RANGE</div><div style="font-family:'Orbitron';font-size:13px">${g.range}m</div><div class="bar-bg"><div class="bar-fill" style="width:${Math.min(100,g.range/20)}%;background:var(--zen)"></div></div></div>
+      <div style="background:rgba(255,255,255,0.05);padding:6px;border-radius:3px"><div style="font-size:9px;opacity:0.5">FIRE RATE</div><div style="font-family:'Orbitron';font-size:13px">${g.rpm} RPM</div><div class="bar-bg"><div class="bar-fill" style="width:${Math.min(100,g.rpm/30)}%;background:#ffcc00"></div></div></div>
+      <div style="background:rgba(255,255,255,0.05);padding:6px;border-radius:3px"><div style="font-size:9px;opacity:0.5">ACCURACY</div><div style="font-family:'Orbitron';font-size:13px">${g.acc}%</div><div class="bar-bg"><div class="bar-fill" style="width:${g.acc}%;background:#00aaff"></div></div></div>
     </div>
-    <div style="margin-top:16px;padding:10px;background:rgba(0,255,136,0.05);border:1px solid rgba(0,255,136,0.2)">
-      <div style="font-size:11px;opacity:0.6">PRICE</div><div style="font-family:'Orbitron';font-size:20px;color:var(--zen)">◉ ${g.price} ZEN</div>
-      <button class="btn" style="width:100%;margin-top:10px" onclick="document.querySelector('.gun-card.owned')?.click()">${ownedGuns.has(g.id)?'EQUIPPED - OWNED':'BUY WEAPON'}</button>
+    <div style="margin-top:12px;padding:8px;background:rgba(0,255,136,0.05);border:1px solid rgba(0,255,136,0.2);border-radius:4px">
+      <div style="font-size:10px;opacity:0.6">PRICE</div><div style="font-family:'Orbitron';font-size:18px;color:var(--zen)">◉ ${g.price} ZEN</div>
+      <button class="btn" style="width:100%;margin-top:8px;padding:8px;font-size:12px">${ownedGuns.has(g.id)?'EQUIPPED - OWNED':'BUY WEAPON'}</button>
+      <div style="font-size:10px;opacity:0.5;margin-top:6px">Mobile auto-aim helps with this weapon on phones.</div>
     </div>
   `;
 }
 
-window.closeModal = (id)=>{ document.getElementById(id).classList.remove('active'); if(gameStarted) renderer.domElement.requestPointerLock(); };
+window.closeModal = (id)=>{ document.getElementById(id).classList.remove('active'); if(gameStarted && !mobileController?.isMobile) renderer.domElement.requestPointerLock(); };
 window.toggleModal = (id)=>{
   const m=document.getElementById(id);
   const isActive=m.classList.contains('active');
@@ -1049,7 +1152,8 @@ function setQuality(q){
   renderer.shadowMap.enabled=!isLow;
   renderer.setPixelRatio(Math.min(devicePixelRatio, isLow?1.2: q==='medium'?1.5:2));
   scene.fog = new THREE.FogExp2(0x0a0e13, isLow?0.0035:0.002);
-  notify(`QUALITY: ${q.toUpperCase()} - ${isLow?'OPTIMIZED FOR F15':''}`);
+  document.getElementById('perfMode').textContent=q.toUpperCase();
+  notify(`QUALITY: ${q.toUpperCase()} - ${isLow?'F15 OPTIMIZED':''}`);
 }
 
 function updateHealthUI(){
@@ -1086,11 +1190,10 @@ function completeQuest(q){
   zen+=q.reward;
   updateZenUI(); updateQuestHUD();
   notify(`QUEST COMPLETE: ${q.title} +${q.reward} ZEN`);
-  // Auto start next main
   const nextMain = MAIN_QUESTS.find(mq=>mq.id===q.id+1);
   if(q.type==='Main' && nextMain){
     activeQuests.push(nextMain);
-    notify(`NEW MISSION: ${nextMain.title}`);
+    notify(`NEW MISSION: ${nextMain.title} ${[1,6,14,27,30].includes(nextMain.id)?'🎬 CUTSCENE AVAILABLE':''}`);
   }
 }
 function playerDeath(){
@@ -1099,64 +1202,54 @@ function playerDeath(){
   player.position.set(0,0,0);
   updateHealthUI();
   wantedLevel=0; updateWanted();
+  if(cutscenesEnabled) playCutscene('contract');
 }
 
-// --- MINIMAP ---
 function setupMinimap(){
   const canvas=document.getElementById('miniCanvas');
   const ctx=canvas.getContext('2d');
   setInterval(()=>{
     if(!gameStarted) return;
-    ctx.clearRect(0,0,180,180);
-    // BG
-    ctx.fillStyle='rgba(10,20,30,0.8)'; ctx.fillRect(0,0,180,180);
+    ctx.clearRect(0,0,160,160);
+    ctx.fillStyle='rgba(10,20,30,0.8)'; ctx.fillRect(0,0,160,160);
     ctx.strokeStyle='rgba(0,255,136,0.2)'; ctx.lineWidth=1;
-    // Grid
-    for(let i=0;i<180;i+=20){ ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,180); ctx.stroke(); ctx.beginPath(); ctx.moveTo(0,i); ctx.lineTo(180,i); ctx.stroke(); }
-    // Player
+    for(let i=0;i<160;i+=20){ ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,160); ctx.stroke(); ctx.beginPath(); ctx.moveTo(0,i); ctx.lineTo(160,i); ctx.stroke(); }
     const scale=0.05;
-    const px=90+player.position.x*scale;
-    const pz=90+player.position.z*scale;
-    // Buildings
+    const px=80+player.position.x*scale;
+    const pz=80+player.position.z*scale;
     ctx.fillStyle='rgba(255,255,255,0.3)';
     buildings.forEach(b=>{
       if(Math.hypot(b.x-player.position.x, b.z-player.position.z)>drawDistance) return;
-      const bx=90+b.x*scale, bz=90+b.z*scale;
+      const bx=80+b.x*scale, bz=80+b.z*scale;
       ctx.fillRect(bx-2,bz-2,4,4);
     });
-    // Enemies
     ctx.fillStyle='#ff2040';
     enemies.forEach(e=>{
       if(e.health<=0) return;
       if(e.group.position.distanceTo(player.position)>drawDistance) return;
-      const ex=90+e.group.position.x*scale, ez=90+e.group.position.z*scale;
+      const ex=80+e.group.position.x*scale, ez=80+e.group.position.z*scale;
       ctx.beginPath(); ctx.arc(ex,ez,3,0,Math.PI*2); ctx.fill();
     });
-    // Vehicles
     ctx.fillStyle='#00aaff';
     vehicles.forEach(v=>{
-      const vx=90+v.group.position.x*scale, vz=90+v.group.position.z*scale;
+      const vx=80+v.group.position.x*scale, vz=80+v.group.position.z*scale;
       ctx.fillRect(vx-1.5,vz-1.5,3,3);
     });
-    // Quests
     ctx.fillStyle='#ffcc00';
     activeQuests.forEach(q=>{
-      const qx=90+q.location.x*scale, qz=90+q.location.z*scale;
+      const qx=80+q.location.x*scale, qz=80+q.location.z*scale;
       ctx.beginPath(); ctx.arc(qx,qz,5,0,Math.PI*2); ctx.strokeStyle='#ffcc00'; ctx.lineWidth=2; ctx.stroke();
     });
-    // Player dot
     ctx.fillStyle='#00ff88'; ctx.beginPath(); ctx.arc(px,pz,4,0,Math.PI*2); ctx.fill();
     ctx.strokeStyle='#fff'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(px, pz-8); ctx.lineTo(px, pz-4); ctx.stroke();
   },100);
 }
 
-// --- MAIN LOOP ---
 let lastFpsUpdate=0, frameCount=0, fps=60;
 function animate(){
   requestAnimationFrame(animate);
   const dt = Math.min(0.05, clock.getDelta());
   if(!gameStarted){
-    // Menu camera orbit
     const t=clock.elapsedTime*0.1;
     camera.position.set(Math.sin(t)*30, 15+Math.sin(t*0.5)*3, Math.cos(t)*30);
     camera.lookAt(0,0,0);
@@ -1164,7 +1257,6 @@ function animate(){
     return;
   }
 
-  // Game updates
   if(!document.querySelector('.modal.active')){
     updatePlayer(dt);
     updateVehicle(dt);
@@ -1173,18 +1265,14 @@ function animate(){
   updateProjectiles(dt);
   updateCamera(dt);
 
-  // Wanted decay
   if(wantedLevel>0){ wantedLevel=Math.max(0,wantedLevel-dt*0.1); if(Math.floor(performance.now()/500)%2===0) updateWanted(); }
 
-  // Quest proximity check
   activeQuests.forEach(q=>{
     if(player.position.distanceTo(new THREE.Vector3(q.location.x,0,q.location.z))<25){
-      // Simulate objective progress
       if(Math.random()<0.01) completeQuest(q);
     }
   });
 
-  // Performance stats
   frameCount++;
   if(clock.elapsedTime - lastFpsUpdate > 0.5){
     fps = Math.round(frameCount / (clock.elapsedTime - lastFpsUpdate));
@@ -1192,15 +1280,14 @@ function animate(){
     document.getElementById('perfFps').textContent=fps+' FPS';
     document.getElementById('fpsCounter').textContent=fps+' FPS | '+quality.toUpperCase()+' MODE';
     document.getElementById('perfDraw').textContent=renderer.info.render.triangles+' TRIS';
-    // Auto quality drop if low fps on F15
     if(fps<25 && quality!=='low'){ setQuality('low'); }
   }
 
   renderer.render(scene,camera);
 }
 
-// Expose for UI
 window.GUNS=GUNS;
+import { CUTSCENES } from './engine/cutscene.js';
+window.CUTSCENES = CUTSCENES;
 
-// Start
 init();
