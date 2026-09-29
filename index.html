@@ -160,20 +160,23 @@ body.mobile-mode #ammoDisplay .big{font-size:20px}
 <div id="mainMenu">
   <div class="menu-left">
     <h1><span>STEALTH</span><span>RESILIENCE</span></h1>
-    <div class="tagline">YOU ARE JACKSON. HIRED MERCENARY.<br>TARGET: DRUG MAFIA MICHAEL.<br><b style="color:var(--zen)">NEW: CINEMATIC CUTSCENES + MOBILE AAA CONTROLS</b><br>125 GUNS • 35 VEHICLES • 70 MISSIONS • ZEN ECONOMY<br>Dual Joysticks • Gyro Aim • Auto-Aim • Haptics</div>
+    <div class="tagline">YOU ARE JACKSON. HIRED MERCENARY.<br>TARGET: DRUG MAFIA MICHAEL.<br><b style="color:var(--zen)">NEW: FLARES + MOBILE PRO + GET UP FOR WORK</b><br>132 GUNS • 35 VEHICLES • 70 MISSIONS • 10 FLARE TYPES • ZEN ECONOMY<br>Dual Joysticks • Gyro • Auto-Aim • Haptics • Flare Selector • Work Alarm</div>
     <div style="display:flex;flex-wrap:wrap">
       <button class="btn" id="playBtn">⏰ GET UP FOR WORK - START SHIFT</button>
+      <button class="btn" style="background:linear-gradient(90deg,#ff6600,#cc3300)" id="flareBtn">🚀 FLARES - SIGNAL</button>
       <button class="btn gold" id="workAlarmBtn">☀ WAKE UP CUTSCENE</button>
-      <button class="btn gold" id="cutsceneBtn">🎬 PLAY INTRO CUTSCENE</button>
+      <button class="btn gold" id="cutsceneBtn">🎬 INTRO CUTSCENE</button>
       <button class="btn secondary" id="loadBtn">LOADOUT / ARMOURY</button>
-      <button class="btn secondary" id="mobileBtn">📱 MOBILE MODE</button>
+      <button class="btn secondary" id="mobileBtn">📱 MOBILE PRO</button>
       <button class="btn secondary" id="settingsBtn">⚙ SETTINGS - F15</button>
     </div>
     <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap">
-      <span style="font-size:10px;opacity:0.5;border:1px solid rgba(0,255,136,0.2);padding:4px 8px;border-radius:3px">CUTSCENES 6 CINEMATICS</span>
-      <span style="font-size:10px;opacity:0.5;border:1px solid rgba(0,170,255,0.2);padding:4px 8px;border-radius:3px">MOBILE DUAL JOYSTICK</span>
-      <span style="font-size:10px;opacity:0.5;border:1px solid rgba(255,204,0,0.2);padding:4px 8px;border-radius:3px">GYRO AIM • HAPTICS</span>
+      <span style="font-size:10px;opacity:0.5;border:1px solid rgba(255,102,0,0.3);padding:4px 8px;border-radius:3px">🚀 10 FLARE TYPES</span>
+      <span style="font-size:10px;opacity:0.5;border:1px solid rgba(0,255,136,0.2);padding:4px 8px;border-radius:3px">CUTSCENES 7 CINEMATICS</span>
+      <span style="font-size:10px;opacity:0.5;border:1px solid rgba(0,170,255,0.2);padding:4px 8px;border-radius:3px">MOBILE DUAL JOYSTICK v2</span>
+      <span style="font-size:10px;opacity:0.5;border:1px solid rgba(255,204,0,0.2);padding:4px 8px;border-radius:3px">GYRO • HAPTICS • AUTO-AIM</span>
       <span style="font-size:10px;opacity:0.5;border:1px solid rgba(255,255,255,0.1);padding:4px 8px;border-radius:3px">F15 5G 60 FPS</span>
+      <span style="font-size:10px;opacity:0.5;border:1px solid rgba(255,204,0,0.2);padding:4px 8px;border-radius:3px">⏰ WORK ALARM 06:00</span>
     </div>
     <div style="margin-top:14px;background:rgba(0,0,0,0.4);border:1px solid rgba(0,255,136,0.15);padding:10px 12px;border-radius:4px">
       <div style="font-family:'Orbitron';font-size:11px;color:var(--zen);margin-bottom:6px;letter-spacing:0.1em">🎬 CUTSCENE SYSTEM</div>
@@ -181,18 +184,20 @@ body.mobile-mode #ammoDisplay .big{font-size:20px}
     </div>
   </div>
   <div class="menu-right">
-    <h3>FIELD DOSSIER - v2.0 MOBILE + CUTSCENES</h3>
+    <h3>FIELD DOSSIER - v3.0 FLARES + MOBILE PRO + WORK</h3>
     <div class="stat-row"><span>OPERATIVE</span><span>JACKSON - TIER 1</span></div>
     <div class="stat-row"><span>PRIMARY TARGET</span><span style="color:#ff2040">MICHAEL VARGAS</span></div>
     <div class="stat-row"><span>LOCATION</span><span>SANTOS CARTEL CITY</span></div>
-    <div class="stat-row"><span>ARSENAL</span><span>125 WEAPONS</span></div>
+    <div class="stat-row"><span>ARSENAL</span><span>132 WEAPONS (125+7 FLARES)</span></div>
     <div class="stat-row"><span>VEHICLE FLEET</span><span>35 UNITS</span></div>
     <div class="stat-row"><span>MAIN OPS</span><span>30 QUESTS + CUTSCENES</span></div>
-    <div class="stat-row"><span>SIDE OPS</span><span>40 QUESTS</span></div>
-    <div class="stat-row"><span>CUTSCENES</span><span style="color:#a020f0">6 CINEMATICS</span></div>
-    <div class="stat-row"><span>MOBILE</span><span style="color:#00aaff">DUAL JOYSTICK + GYRO</span></div>
+    <div class="stat-row"><span>SIDE OPS</span><span>40 QUESTS + WORK JOBS</span></div>
+    <div class="stat-row"><span>CUTSCENES</span><span style="color:#a020f0">7 CINEMATICS</span></div>
+    <div class="stat-row"><span>MOBILE</span><span style="color:#00aaff">DUAL STICK v2 + GYRO + FLARES</span></div>
+    <div class="stat-row"><span>FLARES</span><span style="color:#ff6600">10 TYPES - SIGNAL/SMOKE/ILLUM</span></div>
+    <div class="stat-row"><span>WORK SHIFT</span><span style="color:#ffcc00">06:00-22:00 + APARTMENT</span></div>
     <div class="stat-row"><span>CURRENCY</span><span>ZEN COINS</span></div>
-    <div class="stat-row"><span>HEAVY SUPPORT</span><span>TANKS • JETS • MISSILES</span></div>
+    <div class="stat-row"><span>HEAVY SUPPORT</span><span>TANKS • JETS • MISSILES • FLARES</span></div>
     <div style="margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:6px">
       <img src="assets/images/references/tactical-mercenary-soldier-stealth-black-1.jpg" style="width:100%;height:64px;object-fit:cover;border:1px solid rgba(0,255,136,0.2);border-radius:3px">
       <img src="assets/images/references/drug-mafia-boss-cartel-villain-portrait-1.jpg" style="width:100%;height:64px;object-fit:cover;border:1px solid rgba(255,32,64,0.3);border-radius:3px">
@@ -226,16 +231,19 @@ body.mobile-mode #ammoDisplay .big{font-size:20px}
   <div id="questHud"></div>
   <div class="hud-bottom">
     <div id="controls">
-      <b>WASD</b> Move | <b>MOUSE</b> Look | <b>SHIFT</b> Sprint | <b>C</b> Stealth | <b>SPACE</b> Jump | <b>LMB</b> Shoot | <b>R</b> Reload | <b>E</b> Vehicle | <b>Q</b> Grenade | <b>G</b> Mine | <b>TAB</b> Armoury | <b>M</b> Quests | <b>V</b> Cutscene | <b>1-4</b> Guns<br>
-      <span style="opacity:0.6">Mobile: Left Move, Right Look, Swipe right half to aim, Gyro optional, Auto-aim assist</span>
+      <b>WASD</b> Move | <b>MOUSE</b> Look | <b>SHIFT</b> Sprint | <b>C</b> Stealth | <b>SPACE</b> Jump | <b>LMB</b> Shoot | <b>R</b> Reload | <b>E</b> Vehicle/Apartment | <b>Q</b> Grenade | <b>G</b> Mine | <b>F</b> Flare <span style="color:#ff6600">🚀</span> | <b>H</b> Illumination | <b>J</b> Smoke | <b>TAB</b> Armoury | <b>M</b> Quests | <b>V</b> Cutscene | <b>1-4</b> Guns<br>
+      <span style="opacity:0.6">Mobile: Left Move, Right Look, Swipe right half, Gyro, Auto-aim, Flare selector R/G/W/☀/💨 + FLARE button | Work: ⏰ alarm 06:00, E in apartment to sleep</span>
+      <div id="hudFlare" style="margin-top:6px;font-size:10px;font-family:'Orbitron';display:flex;gap:4px;flex-wrap:wrap;pointer-events:auto"></div>
     </div>
     <div style="text-align:right;font-size:10px;opacity:0.65;font-family:'Orbitron';pointer-events:auto">
       <div>STEALTH: <span id="stealthMeter" style="color:var(--zen)">HIDDEN</span></div>
       <div>WANTED: <span id="wanted">☆☆☆☆☆</span></div>
+      <div>FLARES: <span id="flareCount" style="color:#ff6600">15</span> <button id="hudFlareBtn" style="padding:2px 6px;background:rgba(255,102,0,0.2);border:1px solid rgba(255,102,0,0.3);color:#ff6600;font-family:'Orbitron';font-size:8px;border-radius:3px;cursor:pointer">🚀 FLARE [F]</button></div>
       <div id="fpsCounter">60 FPS | F15 MODE</div>
-      <div style="margin-top:4px;display:flex;gap:4px;justify-content:flex-end">
+      <div style="margin-top:4px;display:flex;gap:4px;justify-content:flex-end;flex-wrap:wrap">
         <button id="hudCutscene" style="padding:3px 8px;background:rgba(160,32,240,0.2);border:1px solid rgba(160,32,240,0.3);color:#a020f0;font-family:'Orbitron';font-size:9px;border-radius:3px;cursor:pointer">🎬 CUTSCENE</button>
         <button id="hudMobile" style="padding:3px 8px;background:rgba(0,170,255,0.2);border:1px solid rgba(0,170,255,0.3);color:#00aaff;font-family:'Orbitron';font-size:9px;border-radius:3px;cursor:pointer">📱 MOBILE</button>
+        <button id="hudWork" style="padding:3px 8px;background:rgba(255,204,0,0.2);border:1px solid rgba(255,204,0,0.3);color:#ffcc00;font-family:'Orbitron';font-size:9px;border-radius:3px;cursor:pointer">⏰ WORK</button>
       </div>
     </div>
   </div>
@@ -373,16 +381,45 @@ body.mobile-mode #ammoDisplay .big{font-size:20px}
   </div>
 </div>
 
+<div class="modal" id="flareModal">
+  <div class="modal-box" style="max-width:700px;height:auto;max-height:90vh">
+    <div class="modal-head"><h2>🚀 FLARES - SIGNAL & ILLUMINATION</h2><button class="btn secondary" style="padding:6px 12px;font-size:11px" onclick="closeModal('flareModal')">CLOSE [F]</button></div>
+    <div style="padding:16px;overflow:auto">
+      <h4 style="font-family:'Orbitron';color:#ff6600;margin-bottom:10px;font-size:12px">FLARE ARSENAL - 10 TYPES | MOBILE FLARE BUTTON</h4>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px" id="flareGrid">
+        <!-- Populated by JS -->
+      </div>
+      <div style="margin-top:16px;background:rgba(255,102,0,0.08);border:1px solid rgba(255,102,0,0.2);padding:12px;border-radius:4px;font-size:11px;line-height:1.5">
+        <b style="color:#ff6600">HOW TO USE FLARES:</b><br>
+        <b>F</b> - Launch selected flare (mobile: 🚀 FLARE button)<br>
+        <b>H</b> - Illumination 60k candlepower parachute flare - lights 200m for 45s<br>
+        <b>J</b> - Red smoke - marks target for airstrike, triggers missile if near Michael's throne (0,1000)<br>
+        <b>Mobile:</b> Top selector R/G/W/☀/💨 chooses flare type, then press FLARE<br>
+        <b>Effects:</b> PointLight with flicker, glow sprite, smoke trail, parachute for illumination, ground smoke for smoke flares, SOS burst 3x<br>
+        <b>Tactical:</b> Red = enemy, Green = extraction, White = illumination, Smoke = airstrike marking, Distress = rescue, IR = stealth NVG
+      </div>
+      <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn" style="padding:8px 16px;font-size:11px;background:linear-gradient(90deg,#ff2040,#aa0011)" onclick="launchFlare('signal_red')">🚀 RED SIGNAL</button>
+        <button class="btn" style="padding:8px 16px;font-size:11px;background:linear-gradient(90deg,#00ff88,#00aa5a);color:#000" onclick="launchFlare('signal_green')">🚀 GREEN SAFE</button>
+        <button class="btn" style="padding:8px 16px;font-size:11px;background:linear-gradient(90deg,#fff,#aaa);color:#000" onclick="launchFlare('signal_white')">☀ WHITE ILLUM</button>
+        <button class="btn" style="padding:8px 16px;font-size:11px;background:linear-gradient(90deg,#ffcc00,#ff9900);color:#000" onclick="launchFlare('illumination')">☀ 60K PARACHUTE</button>
+        <button class="btn secondary" style="padding:8px 16px;font-size:11px" onclick="launchFlare('smoke_red')">💨 RED SMOKE</button>
+        <button class="btn secondary" style="padding:8px 16px;font-size:11px" onclick="launchFlare('distress')">🆘 SOS BURST</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="modal" id="mobileModal">
-  <div class="modal-box" style="max-width:500px;height:auto">
-    <div class="modal-head"><h2>📱 MOBILE AAA MODE</h2><button class="btn secondary" style="padding:6px 12px;font-size:11px" onclick="closeModal('mobileModal')">CLOSE</button></div>
-    <div style="padding:16px">
-      <h4 style="font-family:'Orbitron';color:var(--blue);margin-bottom:10px">MOBILE CONTROLS FOR GALAXY F15 5G</h4>
+  <div class="modal-box" style="max-width:560px;height:auto;max-height:90vh">
+    <div class="modal-head"><h2>📱 MOBILE AAA MODE v2 + FLARES</h2><button class="btn secondary" style="padding:6px 12px;font-size:11px" onclick="closeModal('mobileModal')">CLOSE</button></div>
+    <div style="padding:16px;overflow:auto">
+      <h4 style="font-family:'Orbitron';color:var(--blue);margin-bottom:10px">MOBILE CONTROLS FOR GALAXY F15 5G - ENHANCED + FLARES</h4>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:12px;line-height:1.4">
-        <div style="background:rgba(0,255,136,0.08);padding:10px;border-radius:4px;border:1px solid rgba(0,255,136,0.15)"><b style="color:var(--zen)">LEFT STICK</b><br>Move Jackson<br>WASD equivalent<br>Haptic on edge</div>
-        <div style="background:rgba(0,170,255,0.08);padding:10px;border-radius:4px;border:1px solid rgba(0,170,255,0.15)"><b style="color:var(--blue)">RIGHT STICK</b><br>Look / Aim<br>Camera control<br>Swipe also works</div>
-        <div style="background:rgba(255,32,64,0.08);padding:10px;border-radius:4px;border:1px solid rgba(255,32,64,0.15)"><b style="color:var(--danger)">SHOOT (◉)</b><br>Big red button<br>Auto-aim assist<br>Vibration feedback</div>
-        <div style="background:rgba(255,204,0,0.08);padding:10px;border-radius:4px;border:1px solid rgba(255,204,0,0.15)"><b style="color:var(--gold)">AIM</b><br>Hold for precision<br>Slows sensitivity<br>Crosshair grows</div>
+        <div style="background:rgba(0,255,136,0.08);padding:10px;border-radius:4px;border:1px solid rgba(0,255,136,0.15)"><b style="color:var(--zen)">LEFT STICK</b><br>Move Jackson<br>WASD equivalent<br>Haptic on edge + scale</div>
+        <div style="background:rgba(0,170,255,0.08);padding:10px;border-radius:4px;border:1px solid rgba(0,170,255,0.15)"><b style="color:var(--blue)">RIGHT STICK</b><br>Look / Aim<br>Camera control<br>Swipe + crosshair lines</div>
+        <div style="background:rgba(255,32,64,0.08);padding:10px;border-radius:4px;border:1px solid rgba(255,32,64,0.15)"><b style="color:var(--danger)">SHOOT (◉) 88px</b><br>Big red button<br>Auto-aim 85m<br>Vibration + FIRE label</div>
+        <div style="background:rgba(255,102,0,0.08);padding:10px;border-radius:4px;border:1px solid rgba(255,102,0,0.15)"><b style="color:#ff6600">FLARE 🚀 62px</b><br>Signal/Illum<br>Selector R/G/W/☀/💨<br>Marks airstrike</div>
       </div>
       <div style="margin-top:12px;display:grid;grid-template-columns:repeat(4,1fr);gap:6px">
         <div style="text-align:center;background:rgba(0,0,0,0.3);padding:8px;border-radius:4px;font-size:10px">⬆<br>JUMP</div>
@@ -391,8 +428,14 @@ body.mobile-mode #ammoDisplay .big{font-size:20px}
         <div style="text-align:center;background:rgba(0,0,0,0.3);padding:8px;border-radius:4px;font-size:10px">⚡<br>SPRINT</div>
         <div style="text-align:center;background:rgba(0,0,0,0.3);padding:8px;border-radius:4px;font-size:10px">💣<br>GRENADE</div>
         <div style="text-align:center;background:rgba(0,0,0,0.3);padding:8px;border-radius:4px;font-size:10px">💥<br>MINE</div>
-        <div style="text-align:center;background:rgba(0,0,0,0.3);padding:8px;border-radius:4px;font-size:10px">🚗<br>VEHICLE</div>
-        <div style="text-align:center;background:rgba(0,0,0,0.3);padding:8px;border-radius:4px;font-size:10px">🔫<br>GUN SWAP</div>
+        <div style="text-align:center;background:rgba(0,0,0,0.3);padding:8px;border-radius:4px;font-size:10px">🚀<br>FLARE</div>
+        <div style="text-align:center;background:rgba(0,0,0,0.3);padding:8px;border-radius:4px;font-size:10px">⏰<br>WORK</div>
+      </div>
+      <div style="margin-top:8px;display:grid;grid-template-columns:repeat(4,1fr);gap:6px">
+        <div style="text-align:center;background:rgba(0,0,0,0.3);padding:6px;border-radius:4px;font-size:9px">🗺<br>MAP</div>
+        <div style="text-align:center;background:rgba(0,0,0,0.3);padding:6px;border-radius:4px;font-size:9px">🔫<br>GUNS</div>
+        <div style="text-align:center;background:rgba(0,0,0,0.3);padding:6px;border-radius:4px;font-size:9px">🚀<br>FLARES</div>
+        <div style="text-align:center;background:rgba(0,0,0,0.3);padding:6px;border-radius:4px;font-size:9px">🎬<br>CUTSCENE</div>
       </div>
       <div style="margin-top:12px;background:rgba(0,170,255,0.08);padding:10px;border-radius:4px;border:1px solid rgba(0,170,255,0.15);font-size:11px;line-height:1.4">
         <b>GYRO AIM:</b> Tilt phone to fine-aim. Enable via GYRO button. Uses DeviceOrientation. Works on F15 5G.<br>

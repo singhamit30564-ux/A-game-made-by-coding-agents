@@ -4,6 +4,7 @@ import { VEHICLES } from './data/vehicles.js';
 import { MAIN_QUESTS, SIDE_QUESTS } from './data/quests.js';
 import { CutsceneManager, CUTSCENES } from './engine/cutscene.js';
 import { MobileController, setThreeInstance } from './engine/mobile.js';
+import { FlareManager, FLARE_TYPES } from './engine/flares.js';
 
 // --- GLOBALS ---
 let scene, camera, renderer, clock;
@@ -13,7 +14,7 @@ let camYaw = 0, camPitch = 0.2;
 let velocity = new THREE.Vector3();
 let isGrounded = true, isCrouching = false, isSprinting = false, isStealth = false;
 let health = 100, armor = 60, zen = 2500;
-let currentGunId = 36, ammo = {}, ownedGuns = new Set([1,36,56,21,71,111,113]);
+let currentGunId = 36, ammo = {}, ownedGuns = new Set([1,36,56,21,71,111,113,126]); // 126 flare gun
 let enemies = [], buildings = [], vehicles = [], projectiles = [], mines = [], particles = [];
 let activeQuests = [], completedQuests = new Set();
 let inVehicle = null, vehicleVelocity = 0;
@@ -22,9 +23,10 @@ let drawDistance = 600;
 let sensitivity = 1.2;
 let gameStarted = false;
 let wantedLevel = 0;
-let cutsceneManager, mobileController;
+let cutsceneManager, mobileController, flareManager;
 let isAiming = false;
 let cutscenesEnabled = true;
+let flareInventory = {signal_red:5, signal_green:3, signal_white:3, illumination:2, smoke_red:4, smoke_green:2, smoke_white:3, distress:1, ir_strobe:1};
 
 // UI refs
 const hud = document.getElementById('hud');
@@ -82,14 +84,15 @@ async function init() {
   generateVehicles();
   setupAmmo();
 
-  updateLoad(70, "LOADING 70 MISSIONS + 6 CUTSCENES...");
+  updateLoad(70, "LOADING 70 MISSIONS + 7 CUTSCENES + FLARES...");
 
   // Managers
   cutsceneManager = new CutsceneManager(camera, scene, renderer);
   mobileController = new MobileController();
+  flareManager = new FlareManager(scene);
 
   setupQuests();
-  updateLoad(85, "INITIALIZING MOBILE AAA CONTROLS...");
+  updateLoad(85, "INITIALIZING MOBILE AAA + FLARE SYSTEM...");
 
   setupInput();
   setupUI();
@@ -444,12 +447,15 @@ function setupInput(){
     if(e.code==='KeyE'){ tryEnterVehicle(); }
     if(e.code==='KeyQ'){ throwGrenade(); }
     if(e.code==='KeyG'){ placeMine(); }
+    if(e.code==='KeyF'){ launchFlare(); }
+    if(e.code==='KeyH'){ launchFlare('illumination'); }
+    if(e.code==='KeyJ'){ launchFlare('smoke_red'); }
     if(e.code==='Tab'){ e.preventDefault(); toggleModal('armouryModal'); }
     if(e.code==='KeyM'){ toggleModal('questModal'); }
     if(e.code==='KeyV'){ playCutscene('intro'); }
     if(e.code==='Escape'){ closeAllModals(); if(cutsceneManager) cutsceneManager.end(); }
     if(e.code.match(/Digit[1-4]/)){ switchWeapon(parseInt(e.code[5])-1); }
-    if(e.code==='KeyF'){ isAiming=!isAiming; document.getElementById('crosshair').classList.toggle('aiming', isAiming); }
+    if(e.code==='KeyX'){ isAiming=!isAiming; document.getElementById('crosshair').classList.toggle('aiming', isAiming); }
   });
   window.addEventListener('keyup', e=>{
     keys[e.code]=false;
@@ -505,15 +511,19 @@ function setupInput(){
     bind('mSprint', ()=>{ isSprinting=!isSprinting; });
     bind('mGrenade', ()=>throwGrenade());
     bind('mMine', ()=>placeMine());
+    bind('mFlare', ()=>launchFlare());
+    bind('mWork', ()=>window.workAlarm.show());
     bind('mVehicle', ()=>tryEnterVehicle());
     bind('mWeapon', ()=>switchWeapon((GUNS.findIndex(g=>g.id===currentGunId)+1)%4));
     bind('mAim', ()=>{ isAiming=!isAiming; document.getElementById('crosshair').classList.toggle('aiming', isAiming); });
     bind('mMap', ()=>toggleModal('questModal'));
     bind('mArmoury', ()=>toggleModal('armouryModal'));
+    bind('mFlares', ()=>toggleModal('flareModal'));
     bind('mCutscene', ()=>playCutscene('intro'));
     bind('mSettings', ()=>toggleModal('settingsModal'));
     bind('hudCutscene', ()=>playCutscene('intro'));
     bind('hudMobile', ()=>toggleModal('mobileModal'));
+    bind('hudFlareBtn', ()=>launchFlare());
   },1000);
 
   window.addEventListener('resize', ()=>{
@@ -659,9 +669,64 @@ function placeMine(){
   notify(`${GUNS.find(g=>g.id===id).name} PLACED`);
 }
 
-function spawnParticle(pos, color=0xffffff, size=0.3){
+function launchFlare(typeKey=null){
+  if(cutsceneManager && cutsceneManager.isPlaying()) return;
+  // Get type from mobile controller or param or current gun
+  let type = typeKey || (mobileController ? mobileController.getFlareType() : 'signal_red');
+  // Check inventory
+  if(flareInventory[type]<=0){
+    notify(`NO ${type.toUpperCase()} FLARES! BUY IN ARMOURY`);
+    return;
+  }
+  // Also check if flare gun equipped - if so, use its ammo
+  const flareGun = GUNS.find(g=>g.id===126);
+  if(currentGunId===126){
+    const a=ammo[126];
+    if(a.cur<=0){ reload(); return; }
+    a.cur--;
+    updateAmmoUI();
+  }
+  flareInventory[type]--;
+  const dir = new THREE.Vector3(); camera.getWorldDirection(dir);
+  const pos = player.position.clone().add(new THREE.Vector3(0,1.6,0)).add(dir.clone().multiplyScalar(1.2));
+  // Special handling for distress - burst
+  if(type==='distress'){
+    flareManager.launchBurst(pos, type);
+    notify(`🚀 DISTRESS FLARE SOS BURST LAUNCHED!`);
+  } else {
+    flareManager.launch(pos, dir, type, type==='illumination'?18:26);
+    const typeInfo = FLARE_TYPES[type];
+    notify(`🚀 ${typeInfo.name.toUpperCase()} LAUNCHED - ${typeInfo.desc}`);
+    // Quest: if near Michael or objective, mark
+    if(type.includes('red') && player.position.distanceTo(new THREE.Vector3(0,0,1000))<200){
+      notify("🎯 TARGET MARKED FOR AIRSTRIKE - MISSILE INBOUND!");
+      setTimeout(()=>{ explode(new THREE.Vector3(0,0,1000), 800, 20); },3000);
+    }
+  }
+  if(mobileController) mobileController.vibrate([20,30,20]);
+  updateFlareUI();
+}
+
+function updateFlareUI(){
+  const el=document.getElementById('flareCount');
+  if(el){
+    const total=Object.values(flareInventory).reduce((a,b)=>a+b,0);
+    el.textContent=total;
+  }
+  // Update HUD flare display
+  const hudFlare=document.getElementById('hudFlare');
+  if(hudFlare){
+    hudFlare.innerHTML = Object.entries(flareInventory).map(([k,v])=>{
+      const t=FLARE_TYPES[k];
+      const color=`#${t.color.toString(16).padStart(6,'0')}`;
+      return `<span style="color:${color};margin-right:6px">●${v}</span>`;
+    }).join('');
+  }
+}
+
+function spawnParticle(pos, color=0xffffff, size=0.3, opacity=0.9){
   const geo = new THREE.SphereGeometry(size,4,4);
-  const mat = new THREE.MeshBasicMaterial({color, transparent:true, opacity:0.9});
+  const mat = new THREE.MeshBasicMaterial({color, transparent:true, opacity});
   const mesh = new THREE.Mesh(geo, mat);
   mesh.position.copy(pos);
   scene.add(mesh);
@@ -1119,10 +1184,12 @@ function setupUI(){
   });
 
   document.getElementById('workAlarmBtn').addEventListener('click', ()=>playCutscene('wakeUpWork'));
+  document.getElementById('flareBtn')?.addEventListener('click', ()=>toggleModal('flareModal'));
   document.getElementById('cutsceneBtn').addEventListener('click', ()=>playCutscene('intro'));
   document.getElementById('loadBtn').addEventListener('click', ()=>toggleModal('armouryModal'));
   document.getElementById('mobileBtn').addEventListener('click', ()=>toggleModal('mobileModal'));
   document.getElementById('settingsBtn').addEventListener('click', ()=>toggleModal('settingsModal'));
+  document.getElementById('hudWork')?.addEventListener('click', ()=>window.workAlarm.show());
 
   const gunGrid = document.getElementById('gunGrid');
   const filters = document.querySelectorAll('#gunFilters button');
@@ -1190,6 +1257,45 @@ function setupUI(){
       csList.appendChild(div);
     });
   }
+
+  // Flare grid
+  const flareGrid = document.getElementById('flareGrid');
+  if(flareGrid){
+    Object.entries(FLARE_TYPES).forEach(([key, flare])=>{
+      const div=document.createElement('div');
+      const colorHex = `#${flare.color.toString(16).padStart(6,'0')}`;
+      div.style.cssText=`background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);padding:10px;border-radius:4px;cursor:pointer;position:relative;overflow:hidden`;
+      div.innerHTML=`
+        <div style="position:absolute;top:0;right:0;padding:2px 6px;font-size:9px;font-family:Orbitron;background:${colorHex};color:${flare.color===0xffffff||flare.color===0xffffaa?'#000':'#fff'}">${flare.duration}s</div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <div style="width:28px;height:28px;border-radius:50%;background:${colorHex};box-shadow:0 0 12px ${colorHex};flex-shrink:0"></div>
+          <div>
+            <div style="font-family:Orbitron;font-size:11px;color:${colorHex}">${flare.name}</div>
+            <div style="font-size:10px;opacity:0.7;margin-top:2px">${flare.desc}</div>
+            <div style="font-family:Orbitron;font-size:11px;color:var(--zen);margin-top:4px">◉ ${flare.price} ZEN - x${flareInventory[key]||0}</div>
+          </div>
+        </div>
+        <button class="btn" style="width:100%;margin-top:8px;padding:6px;font-size:10px;background:${colorHex};color:${flare.color===0xffffff||flare.color===0xffffaa?'#000':'#fff'}">🚀 LAUNCH ${key.toUpperCase()}</button>
+      `;
+      div.querySelector('button').addEventListener('click', ()=>{
+        if(flareInventory[key]<=0){
+          if(zen>=flare.price){
+            if(confirm(`Buy ${flare.name} for ${flare.price} ZEN?`)){
+              zen-=flare.price; flareInventory[key]=(flareInventory[key]||0)+1; updateZenUI(); updateFlareUI();
+              notify(`BOUGHT ${flare.name}`);
+            }
+          } else {
+            notify(`NEED ${flare.price} ZEN`);
+          }
+        } else {
+          closeAllModals();
+          setTimeout(()=>launchFlare(key),300);
+        }
+      });
+      flareGrid.appendChild(div);
+    });
+  }
+  updateFlareUI();
 
   const qList = document.getElementById('questList');
   const qFilters = document.querySelectorAll('[data-qfilter]');
@@ -1416,6 +1522,7 @@ function animate(){
     updateEnemies(dt);
   }
   updateProjectiles(dt);
+  if(flareManager) flareManager.update(dt, spawnParticle);
   updateCamera(dt);
 
   if(wantedLevel>0){ wantedLevel=Math.max(0,wantedLevel-dt*0.1); if(Math.floor(performance.now()/500)%2===0) updateWanted(); }

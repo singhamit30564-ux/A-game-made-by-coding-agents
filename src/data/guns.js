@@ -141,6 +141,14 @@ export const GUNS = [
   {id:123, name:"Minigun M134 Vulcan", cat:"LMG", dmg:35, rpm:3000, mag:500, range:500, acc:45, price:20000, rarity:"Legendary", desc:"6 barrel hell."},
   {id:124, name:"Flamethrower M2", cat:"Special", dmg:15, rpm:600, mag:100, range:25, acc:100, price:8000, rarity:"Epic", desc:"Burn cartel fields."},
   {id:125, name:"Crossbow Whisper Bolt", cat:"Special", dmg:200, rpm:30, mag:1, range:150, acc:98, price:3000, rarity:"Rare", desc:"Silent takedown."},
+  // FLARES - NEW
+  {id:126, name:"Flare Gun M79", cat:"Special", dmg:5, rpm:20, mag:1, range:150, acc:100, price:500, rarity:"Uncommon", desc:"Launch signal flares 150m - marks targets"},
+  {id:127, name:"Signal Flare RED", cat:"Throwable", dmg:2, rpm:0, mag:1, range:100, acc:100, price:150, rarity:"Common", desc:"Red emergency flare - 30s burn, calls fire support"},
+  {id:128, name:"Signal Flare GREEN", cat:"Throwable", dmg:2, rpm:0, mag:1, range:100, acc:100, price:150, rarity:"Common", desc:"Green safe flare - marks extraction LZ"},
+  {id:129, name:"Illumination Flare 60k", cat:"Throwable", dmg:5, rpm:0, mag:1, range:200, acc:100, price:300, rarity:"Uncommon", desc:"60k candlepower parachute flare - 45s, lights 200m"},
+  {id:130, name:"Smoke Flare RED", cat:"Throwable", dmg:5, rpm:0, mag:1, range:50, acc:100, price:100, rarity:"Common", desc:"Red smoke - marks target for airstrike"},
+  {id:131, name:"Distress Flare SOS", cat:"Throwable", dmg:10, rpm:0, mag:3, range:150, acc:100, price:250, rarity:"Rare", desc:"SOS burst 3x - calls rescue chopper"},
+  {id:132, name:"IR Strobe NVG", cat:"Throwable", dmg:1, rpm:0, mag:1, range:80, acc:100, price:400, rarity:"Rare", desc:"IR strobe - stealth marking, visible only with NVG"},
 ];
 
 export const getGunsByCategory = (cat) => GUNS.filter(g=>g.cat===cat);
