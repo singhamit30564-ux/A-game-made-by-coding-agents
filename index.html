@@ -1,463 +1,50 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>STEALTH RESILIENCE - AAA Open World | Cutscenes + Mobile</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#00ff88">
+<title>STEALTH RESILIENCE - MOBILE</title>
+<!--
+  MOBILE FIRST.
+  This build is mobile only: there is no desktop code path any more.
+  index.html is now a thin, instant bootstrap that hands over to ./mobile.html,
+  so https://<your-site>.vercel.app/ and /mobile.html always run the exact
+  same touch build.
+-->
+<meta http-equiv="refresh" content="0; url=./mobile.html">
+<link rel="canonical" href="./mobile.html">
+<link rel="manifest" href="./manifest.json">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎯</text></svg>">
-<link rel="manifest" href="manifest.json">
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;600;700&display=swap');
-*{margin:0;padding:0;box-sizing:border-box;user-select:none;-webkit-tap-highlight-color:transparent}
-:root{--zen:#00ff88;--danger:#ff2040;--gold:#ffcc00;--blue:#00aaff;--bg:#0a0e13;--panel:rgba(10,14,19,0.92)}
-body{background:#000;color:#fff;font-family:'Rajdhani',sans-serif;overflow:hidden;touch-action:none;overscroll-behavior:none}
-canvas{display:block;width:100vw;height:100vh}
-
-/* LOADING */
-#loading{position:fixed;inset:0;background:radial-gradient(ellipse at center,#1a2a3a 0%,#0a0e13 70%,#000 100%);z-index:10000;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity 0.8s}
-#loading h1{font-family:'Orbitron';font-weight:900;font-size:clamp(32px,6vw,72px);letter-spacing:0.15em;background:linear-gradient(90deg,#fff,#00ff88,#00aaff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;animation:glow 2s ease-in-out infinite alternate}
-@keyframes glow{from{filter:drop-shadow(0 0 10px rgba(0,255,136,0.5))}to{filter:drop-shadow(0 0 30px rgba(0,255,136,0.9))}}
-#loading .bar{width:320px;height:4px;background:rgba(255,255,255,0.1);margin:30px 0;border-radius:2px;overflow:hidden}
-#loading .fill{height:100%;width:0%;background:linear-gradient(90deg,#00ff88,#00aaff);box-shadow:0 0 10px #00ff88;transition:width 0.2s}
-#loading p{opacity:0.6;font-size:14px;letter-spacing:0.2em}
-
-/* MAIN MENU */
-#mainMenu{position:fixed;inset:0;background:linear-gradient(rgba(0,0,0,0.7),rgba(0,0,0,0.9)),url('assets/images/references/low-poly-open-world-city-gta-style-3d-1.png');background-size:cover;background-position:center;z-index:9000;display:flex;align-items:center;justify-content:space-between;padding:0 8vw;overflow:auto}
-.menu-left{max-width:620px}
-.menu-left h1{font-family:'Orbitron';font-size:clamp(48px,8vw,96px);line-height:0.9;font-weight:900}
-.menu-left h1 span{display:block}
-.menu-left h1 span:first-child{color:#fff}
-.menu-left h1 span:last-child{color:var(--zen);text-shadow:0 0 20px var(--zen)}
-.menu-left .tagline{margin:20px 0 30px;font-size:16px;opacity:0.85;letter-spacing:0.08em;border-left:3px solid var(--zen);padding-left:15px;line-height:1.5}
-.btn{font-family:'Orbitron';background:linear-gradient(90deg,#00ff88,#00cc6a);color:#000;border:none;padding:12px 28px;font-weight:700;letter-spacing:0.08em;cursor:pointer;clip-path:polygon(8% 0,100% 0,92% 100%,0 100%);transition:all 0.2s;font-size:14px;margin:5px;display:inline-flex;align-items:center;gap:8px}
-.btn:hover{transform:scale(1.03);box-shadow:0 0 20px var(--zen)}
-.btn.secondary{background:rgba(255,255,255,0.08);color:#fff;border:1px solid rgba(255,255,255,0.15);backdrop-filter:blur(10px)}
-.btn.danger{background:linear-gradient(90deg,#ff2040,#cc0000);color:#fff}
-.btn.gold{background:linear-gradient(90deg,#ffcc00,#ff9900);color:#000}
-.menu-right{width:380px;background:var(--panel);backdrop-filter:blur(20px);border:1px solid rgba(0,255,136,0.2);padding:20px;border-radius:4px;max-height:90vh;overflow:auto}
-.menu-right h3{font-family:'Orbitron';color:var(--zen);margin-bottom:12px;letter-spacing:0.15em;font-size:14px}
-.stat-row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05);font-size:13px}
-.stat-row span:last-child{color:var(--zen);font-weight:700}
-
-/* HUD */
-#hud{position:fixed;inset:0;pointer-events:none;z-index:100;transition:opacity 0.3s}
-.hud-top{position:absolute;top:0;left:0;right:0;display:flex;justify-content:space-between;padding:12px 16px;background:linear-gradient(to bottom,rgba(0,0,0,0.85),transparent);pointer-events:auto}
-.hud-bottom{position:absolute;bottom:0;left:0;right:0;display:flex;justify-content:space-between;align-items:end;padding:10px 16px;background:linear-gradient(to top,rgba(0,0,0,0.85),transparent);pointer-events:auto}
-#healthBar{width:200px}
-.bar-bg{height:7px;background:rgba(255,255,255,0.1);border-radius:4px;overflow:hidden;margin:3px 0}
-.bar-fill{height:100%;transition:width 0.3s}
-#hpFill{background:linear-gradient(90deg,#ff2040,#ffaa00);width:100%}
-#armorFill{background:linear-gradient(90deg,#00aaff,#00ff88);width:60%}
-#zenDisplay{font-family:'Orbitron';color:var(--zen);font-weight:700;font-size:18px;text-shadow:0 0 10px var(--zen)}
-#ammoDisplay{font-family:'Orbitron';text-align:right}
-#ammoDisplay .big{font-size:28px;font-weight:900;line-height:1}
-#ammoDisplay .small{opacity:0.6;font-size:12px}
-#crosshair{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:20px;height:20px;pointer-events:none;transition:all 0.1s}
-#crosshair.aiming{width:36px;height:36px}
-#crosshair:before,#crosshair:after{content:'';position:absolute;background:#fff;opacity:0.8}
-#crosshair:before{left:50%;top:0;width:1px;height:100%;transform:translateX(-50%)}
-#crosshair:after{top:50%;left:0;height:1px;width:100%;transform:translateY(-50%)}
-#crosshair .dot{position:absolute;left:50%;top:50%;width:4px;height:4px;background:var(--zen);border-radius:50%;transform:translate(-50%,-50%);box-shadow:0 0 6px var(--zen)}
-#crosshair.aiming .dot{width:8px;height:8px;background:var(--danger);box-shadow:0 0 10px var(--danger)}
-
-/* MINIMAP */
-#minimap{position:absolute;top:70px;right:16px;width:160px;height:160px;background:rgba(0,0,0,0.75);border:2px solid rgba(0,255,136,0.3);border-radius:50%;overflow:hidden;backdrop-filter:blur(10px);pointer-events:auto}
-#minimap canvas{width:100%;height:100%}
-#minimap .north{position:absolute;top:4px;left:50%;transform:translateX(-50%);font-size:9px;color:var(--zen);font-weight:700;font-family:'Orbitron'}
-
-/* QUEST HUD */
-#questHud{position:absolute;top:70px;left:16px;max-width:300px;pointer-events:auto}
-.quest-card{background:var(--panel);border-left:3px solid var(--zen);padding:8px 12px;margin-bottom:6px;backdrop-filter:blur(10px);border-radius:0 4px 4px 0;transition:all 0.2s}
-.quest-card:hover{transform:translateX(4px);border-left-width:5px}
-.quest-card h4{font-family:'Orbitron';font-size:11px;color:var(--zen);letter-spacing:0.08em}
-.quest-card p{font-size:12px;margin:3px 0;opacity:0.9;line-height:1.3}
-.quest-card .obj{font-size:10px;opacity:0.7;padding-left:10px;position:relative;margin:2px 0}
-.quest-card .obj:before{content:'○';position:absolute;left:0}
-.quest-card .obj.done{color:var(--zen);text-decoration:line-through}
-.quest-card .obj.done:before{content:'●';color:var(--zen)}
-
-/* MODALS */
-.modal{position:fixed;inset:0;background:rgba(0,0,0,0.88);backdrop-filter:blur(20px);z-index:5000;display:none;align-items:center;justify-content:center;padding:12px}
-.modal.active{display:flex}
-.modal-box{width:min(1100px,98vw);height:min(740px,92vh);background:linear-gradient(135deg,#121a25,#0a0e13);border:1px solid rgba(0,255,136,0.2);display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.8);border-radius:6px}
-.modal-head{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid rgba(255,255,255,0.08);font-family:'Orbitron';flex-wrap:wrap;gap:8px}
-.modal-head h2{color:var(--zen);letter-spacing:0.12em;font-size:14px}
-.modal-body{flex:1;overflow:auto;display:flex}
-.inventory-grid{flex:1;display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;padding:12px;overflow:auto}
-.gun-card{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);padding:10px;border-radius:4px;transition:all 0.2s;cursor:pointer;position:relative;overflow:hidden}
-.gun-card:hover{border-color:var(--zen);background:rgba(0,255,136,0.05);transform:translateY(-2px)}
-.gun-card.owned{border-color:var(--zen);background:rgba(0,255,136,0.08)}
-.gun-card .rarity{position:absolute;top:0;right:0;padding:2px 6px;font-size:9px;font-family:'Orbitron';font-weight:700}
-.rarity.Common{background:#666;color:#fff}
-.rarity.Uncommon{background:#1e90ff;color:#fff}
-.rarity.Rare{background:#a020f0;color:#fff}
-.rarity.Epic{background:#ff8c00;color:#fff}
-.rarity.Legendary{background:linear-gradient(90deg,#ffcc00,#ff6600);color:#000}
-.rarity.Mythic{background:linear-gradient(90deg,#ff00ff,#00ffff);color:#000}
-.gun-card h4{font-family:'Orbitron';font-size:12px;margin:6px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.gun-card .meta{display:flex;gap:6px;font-size:10px;opacity:0.7;flex-wrap:wrap}
-.gun-card .price{color:var(--zen);font-weight:700;margin-top:6px;font-family:'Orbitron';font-size:12px}
-.side-panel{width:300px;border-left:1px solid rgba(255,255,255,0.06);padding:12px;background:rgba(0,0,0,0.25);overflow:auto}
-.filter-bar{display:flex;gap:5px;padding:10px 12px;flex-wrap:wrap;border-bottom:1px solid rgba(255,255,255,0.05)}
-.filter-bar button{padding:5px 10px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);color:#fff;font-size:10px;font-family:'Orbitron';cursor:pointer;border-radius:3px;transition:all 0.15s}
-.filter-bar button.active{background:var(--zen);color:#000;border-color:var(--zen)}
-.filter-bar button:hover{background:rgba(255,255,255,0.1)}
-
-/* CONTROLS HELP */
-#controls{position:absolute;bottom:60px;left:12px;background:var(--panel);padding:8px 12px;border-radius:4px;font-size:10px;opacity:0.55;pointer-events:none;border:1px solid rgba(255,255,255,0.05);max-width:60%;line-height:1.4}
-#controls b{color:var(--zen)}
-
-/* MOBILE - AAA REDESIGN */
-#mobileControls{position:fixed;inset:0;pointer-events:none;z-index:200;display:none}
-body.mobile-mode #mobileControls{display:block}
-body.mobile-mode #controls{display:none}
-body.mobile-mode #minimap{width:120px;height:120px;top:50px;right:10px}
-body.mobile-mode #questHud{max-width:200px;top:50px;left:10px}
-body.mobile-mode .hud-top{padding:8px 10px}
-body.mobile-mode #healthBar{width:140px}
-body.mobile-mode #zenDisplay{font-size:14px}
-body.mobile-mode #ammoDisplay .big{font-size:20px}
-.m-btn{transition:all 0.1s;user-select:none}
-.m-btn:active{transform:scale(0.9);filter:brightness(1.3)}
-
-/* PERFORMANCE */
-#perf{position:fixed;top:8px;left:50%;transform:translateX(-50%);z-index:1000;background:rgba(0,0,0,0.65);padding:3px 10px;border-radius:20px;font-size:10px;font-family:'Orbitron';display:flex;gap:10px;pointer-events:none;border:1px solid rgba(255,255,255,0.08);backdrop-filter:blur(10px)}
-#perf span{color:var(--zen)}
-
-/* NOTIFICATIONS */
-#notifs{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:6000;pointer-events:none;display:flex;flex-direction:column;gap:8px;align-items:center;max-width:90vw}
-.notif{background:var(--panel);border:1px solid var(--zen);padding:10px 20px;font-family:'Orbitron';font-size:13px;animation:pop 3s forwards;backdrop-filter:blur(10px);border-radius:4px;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,0.6)}
-@keyframes pop{0%{transform:scale(0.8) translateY(20px);opacity:0}15%{transform:scale(1.05) translateY(0);opacity:1}85%{opacity:1}100%{transform:scale(0.9) translateY(-10px);opacity:0}}
-
-/* CUTSCENE EXTRA */
-.cutscene-progress{position:fixed;bottom:0;left:0;height:3px;background:var(--zen);z-index:7004;transition:width 0.1s;box-shadow:0 0 10px var(--zen)}
-
-/* RESPONSIVE */
-@media(max-width:900px){
-  #mainMenu{flex-direction:column;justify-content:flex-start;padding:20px 16px;gap:20px}
-  .menu-left{max-width:100%}
-  .menu-right{width:100%;max-width:100%}
-  .modal-box{height:92vh}
-  .modal-body{flex-direction:column}
-  .side-panel{width:100%;border-left:none;border-top:1px solid rgba(255,255,255,0.06);max-height:40vh}
-  .inventory-grid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr))}
-}
-
-::-webkit-scrollbar{width:5px;height:5px}
-::-webkit-scrollbar-thumb{background:rgba(0,255,136,0.25);border-radius:3px}
+html,body{margin:0;padding:0;height:100%;background:#05070a;color:#fff;overflow:hidden;
+  font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;touch-action:none;overscroll-behavior:none}
+#splash{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;
+  background:radial-gradient(ellipse at center,#16283a 0%,#0a0e13 65%,#000 100%);text-align:center;padding:24px}
+#splash h1{font-size:clamp(26px,9vw,54px);letter-spacing:.12em;line-height:1.05;margin:0;
+  background:linear-gradient(90deg,#fff,#00ff88,#00aaff);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+#splash p{font-size:12px;opacity:.6;letter-spacing:.16em;margin:0}
+a.btn{display:inline-block;margin-top:10px;padding:16px 30px;min-height:52px;background:linear-gradient(90deg,#00ff88,#00cc6a);
+  color:#000;font-weight:800;letter-spacing:.1em;text-decoration:none;border-radius:6px;font-size:14px}
 </style>
 </head>
 <body>
-<!-- LOADING -->
-<div id="loading">
-  <h1>STEALTH RESILIENCE</h1>
-  <div class="bar"><div class="fill" id="loadFill"></div></div>
-  <p id="loadText">INITIALIZING BLACK OPS PROTOCOL...</p>
-  <p style="margin-top:12px;font-size:10px;opacity:0.4;letter-spacing:0.2em">CUTSCENES • MOBILE AAA • 125 GUNS • 35 VEHICLES</p>
+<div id="splash">
+  <h1>STEALTH<br>RESILIENCE</h1>
+  <p>LOADING THE MOBILE BUILD...</p>
+  <a class="btn" href="./mobile.html">ENTER GAME</a>
 </div>
-
-<!-- MAIN MENU -->
-<div id="mainMenu">
-  <div class="menu-left">
-    <h1><span>STEALTH</span><span>RESILIENCE</span></h1>
-    <div class="tagline">YOU ARE JACKSON. HIRED MERCENARY.<br>TARGET: DRUG MAFIA MICHAEL.<br><b style="color:var(--zen)">NEW: FLARES + MOBILE PRO + GET UP FOR WORK</b><br>132 GUNS • 35 VEHICLES • 70 MISSIONS • 10 FLARE TYPES • ZEN ECONOMY<br>Dual Joysticks • Gyro • Auto-Aim • Haptics • Flare Selector • Work Alarm</div>
-    <div style="display:flex;flex-wrap:wrap">
-      <button class="btn" id="playBtn">⏰ GET UP FOR WORK - START SHIFT</button>
-      <button class="btn" style="background:linear-gradient(90deg,#ff6600,#cc3300)" id="flareBtn">🚀 FLARES - SIGNAL</button>
-      <button class="btn gold" id="workAlarmBtn">☀ WAKE UP CUTSCENE</button>
-      <button class="btn gold" id="cutsceneBtn">🎬 INTRO CUTSCENE</button>
-      <button class="btn secondary" id="loadBtn">LOADOUT / ARMOURY</button>
-      <button class="btn secondary" id="mobileBtn">📱 MOBILE PRO</button>
-      <button class="btn secondary" id="settingsBtn">⚙ SETTINGS - F15</button>
-    </div>
-    <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap">
-      <span style="font-size:10px;opacity:0.5;border:1px solid rgba(255,102,0,0.3);padding:4px 8px;border-radius:3px">🚀 10 FLARE TYPES</span>
-      <span style="font-size:10px;opacity:0.5;border:1px solid rgba(0,255,136,0.2);padding:4px 8px;border-radius:3px">CUTSCENES 7 CINEMATICS</span>
-      <span style="font-size:10px;opacity:0.5;border:1px solid rgba(0,170,255,0.2);padding:4px 8px;border-radius:3px">MOBILE DUAL JOYSTICK v2</span>
-      <span style="font-size:10px;opacity:0.5;border:1px solid rgba(255,204,0,0.2);padding:4px 8px;border-radius:3px">GYRO • HAPTICS • AUTO-AIM</span>
-      <span style="font-size:10px;opacity:0.5;border:1px solid rgba(255,255,255,0.1);padding:4px 8px;border-radius:3px">F15 5G 60 FPS</span>
-      <span style="font-size:10px;opacity:0.5;border:1px solid rgba(255,204,0,0.2);padding:4px 8px;border-radius:3px">⏰ WORK ALARM 06:00</span>
-    </div>
-    <div style="margin-top:14px;background:rgba(0,0,0,0.4);border:1px solid rgba(0,255,136,0.15);padding:10px 12px;border-radius:4px">
-      <div style="font-family:'Orbitron';font-size:11px;color:var(--zen);margin-bottom:6px;letter-spacing:0.1em">🎬 CUTSCENE SYSTEM</div>
-      <div style="font-size:11px;opacity:0.7;line-height:1.4">Letterbox cinematics, camera paths, dialogue portraits, subtitles, effects (red vignette, scope, flash, hack). 6 stories: Intro, Contract, Sniper, Yacht, Final Intel, Endgame vs Michael. Skip with Space.</div>
-    </div>
-  </div>
-  <div class="menu-right">
-    <h3>FIELD DOSSIER - v3.0 FLARES + MOBILE PRO + WORK</h3>
-    <div class="stat-row"><span>OPERATIVE</span><span>JACKSON - TIER 1</span></div>
-    <div class="stat-row"><span>PRIMARY TARGET</span><span style="color:#ff2040">MICHAEL VARGAS</span></div>
-    <div class="stat-row"><span>LOCATION</span><span>SANTOS CARTEL CITY</span></div>
-    <div class="stat-row"><span>ARSENAL</span><span>132 WEAPONS (125+7 FLARES)</span></div>
-    <div class="stat-row"><span>VEHICLE FLEET</span><span>35 UNITS</span></div>
-    <div class="stat-row"><span>MAIN OPS</span><span>30 QUESTS + CUTSCENES</span></div>
-    <div class="stat-row"><span>SIDE OPS</span><span>40 QUESTS + WORK JOBS</span></div>
-    <div class="stat-row"><span>CUTSCENES</span><span style="color:#a020f0">7 CINEMATICS</span></div>
-    <div class="stat-row"><span>MOBILE</span><span style="color:#00aaff">DUAL STICK v2 + GYRO + FLARES</span></div>
-    <div class="stat-row"><span>FLARES</span><span style="color:#ff6600">10 TYPES - SIGNAL/SMOKE/ILLUM</span></div>
-    <div class="stat-row"><span>WORK SHIFT</span><span style="color:#ffcc00">06:00-22:00 + APARTMENT</span></div>
-    <div class="stat-row"><span>CURRENCY</span><span>ZEN COINS</span></div>
-    <div class="stat-row"><span>HEAVY SUPPORT</span><span>TANKS • JETS • MISSILES • FLARES</span></div>
-    <div style="margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:6px">
-      <img src="assets/images/references/tactical-mercenary-soldier-stealth-black-1.jpg" style="width:100%;height:64px;object-fit:cover;border:1px solid rgba(0,255,136,0.2);border-radius:3px">
-      <img src="assets/images/references/drug-mafia-boss-cartel-villain-portrait-1.jpg" style="width:100%;height:64px;object-fit:cover;border:1px solid rgba(255,32,64,0.3);border-radius:3px">
-      <img src="assets/images/references/military-guns-arsenal-assault-rifles-120-1.jpg" style="width:100%;height:64px;object-fit:cover;border:1px solid rgba(255,255,255,0.1);border-radius:3px">
-      <img src="assets/images/references/supercars-sports-bikes-fighter-jets-tank-1.jpg" style="width:100%;height:64px;object-fit:cover;border:1px solid rgba(255,255,255,0.1);border-radius:3px">
-    </div>
-    <div style="margin-top:10px;display:grid;grid-template-columns:1fr 1fr;gap:6px">
-      <div style="background:rgba(160,32,240,0.1);border:1px solid rgba(160,32,240,0.2);padding:6px 8px;border-radius:3px;font-size:10px"><b style="color:#a020f0">CUTSCENES</b><br>Letterbox, camera paths, dialogue, 6 stories</div>
-      <div style="background:rgba(0,170,255,0.1);border:1px solid rgba(0,170,255,0.2);padding:6px 8px;border-radius:3px;font-size:10px"><b style="color:#00aaff">MOBILE AAA</b><br>Dual stick, gyro, haptics, auto-aim</div>
-    </div>
-    <div style="margin-top:10px;font-size:10px;opacity:0.5;line-height:1.3">
-      REFERENCE IMAGES SCRAPED. CUTSCENE SYSTEM WITH PORTRAITS. MOBILE OPTIMIZED FOR F15 5G WITH 60 FPS TARGET, ADAPTIVE LOD, POOLED OBJECTS.
-    </div>
-  </div>
-</div>
-
-<!-- GAME HUD -->
-<div id="hud" style="display:none">
-  <div class="hud-top">
-    <div id="healthBar">
-      <div style="display:flex;justify-content:space-between;font-size:10px;font-family:'Orbitron'"><span>HEALTH</span><span id="hpText">100</span></div>
-      <div class="bar-bg"><div class="bar-fill" id="hpFill"></div></div>
-      <div style="display:flex;justify-content:space-between;font-size:10px;font-family:'Orbitron';margin-top:3px"><span>ARMOR</span><span id="armorText">60</span></div>
-      <div class="bar-bg"><div class="bar-fill" id="armorFill"></div></div>
-    </div>
-    <div id="zenDisplay">◉ <span id="zenCount">2500</span> ZEN</div>
-    <div id="ammoDisplay"><div class="big"><span id="ammoCur">30</span> / <span id="ammoRes">120</span></div><div class="small" id="gunName">M4A1 Resilience</div></div>
-  </div>
-  <div id="crosshair"><div class="dot"></div></div>
-  <div id="minimap"><div class="north">N</div><canvas id="miniCanvas" width="160" height="160"></canvas></div>
-  <div id="questHud"></div>
-  <div class="hud-bottom">
-    <div id="controls">
-      <b>WASD</b> Move | <b>MOUSE</b> Look | <b>SHIFT</b> Sprint | <b>C</b> Stealth | <b>SPACE</b> Jump | <b>LMB</b> Shoot | <b>R</b> Reload | <b>E</b> Vehicle/Apartment | <b>Q</b> Grenade | <b>G</b> Mine | <b>F</b> Flare <span style="color:#ff6600">🚀</span> | <b>H</b> Illumination | <b>J</b> Smoke | <b>TAB</b> Armoury | <b>M</b> Quests | <b>V</b> Cutscene | <b>1-4</b> Guns<br>
-      <span style="opacity:0.6">Mobile: Left Move, Right Look, Swipe right half, Gyro, Auto-aim, Flare selector R/G/W/☀/💨 + FLARE button | Work: ⏰ alarm 06:00, E in apartment to sleep</span>
-      <div id="hudFlare" style="margin-top:6px;font-size:10px;font-family:'Orbitron';display:flex;gap:4px;flex-wrap:wrap;pointer-events:auto"></div>
-    </div>
-    <div style="text-align:right;font-size:10px;opacity:0.65;font-family:'Orbitron';pointer-events:auto">
-      <div>STEALTH: <span id="stealthMeter" style="color:var(--zen)">HIDDEN</span></div>
-      <div>WANTED: <span id="wanted">☆☆☆☆☆</span></div>
-      <div>FLARES: <span id="flareCount" style="color:#ff6600">15</span> <button id="hudFlareBtn" style="padding:2px 6px;background:rgba(255,102,0,0.2);border:1px solid rgba(255,102,0,0.3);color:#ff6600;font-family:'Orbitron';font-size:8px;border-radius:3px;cursor:pointer">🚀 FLARE [F]</button></div>
-      <div id="fpsCounter">60 FPS | F15 MODE</div>
-      <div style="margin-top:4px;display:flex;gap:4px;justify-content:flex-end;flex-wrap:wrap">
-        <button id="hudCutscene" style="padding:3px 8px;background:rgba(160,32,240,0.2);border:1px solid rgba(160,32,240,0.3);color:#a020f0;font-family:'Orbitron';font-size:9px;border-radius:3px;cursor:pointer">🎬 CUTSCENE</button>
-        <button id="hudMobile" style="padding:3px 8px;background:rgba(0,170,255,0.2);border:1px solid rgba(0,170,255,0.3);color:#00aaff;font-family:'Orbitron';font-size:9px;border-radius:3px;cursor:pointer">📱 MOBILE</button>
-        <button id="hudWork" style="padding:3px 8px;background:rgba(255,204,0,0.2);border:1px solid rgba(255,204,0,0.3);color:#ffcc00;font-family:'Orbitron';font-size:9px;border-radius:3px;cursor:pointer">⏰ WORK</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<div id="perf"><span id="perfFps">60 FPS</span> | <span id="perfDraw">0 TRIS</span> | <span id="perfMem">LOW POLY</span> | <span id="perfMode">F15</span> | <span id="workClock">06:00 AM</span></div>
-<div id="notifs"></div>
-
-<!-- WORK ALARM - GET UP FOR WORK -->
-<div id="workAlarm" style="position:fixed;inset:0;background:radial-gradient(ellipse at center,#1a1a2a 0%,#000 80%);z-index:8000;display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center">
-  <div style="font-family:'Orbitron';font-size:14px;letter-spacing:0.3em;opacity:0.6;margin-bottom:20px">JACKSON'S APARTMENT - SANTOS CITY</div>
-  <div id="alarmTime" style="font-family:'Orbitron';font-weight:900;font-size:clamp(48px,12vw,120px);color:#ff2040;text-shadow:0 0 30px #ff2040;animation:alarmBlink 0.5s infinite alternate">06:00 AM</div>
-  <div style="font-family:'Orbitron';font-size:18px;margin:20px 0;letter-spacing:0.2em">⏰ GET UP FOR WORK! ⏰</div>
-  <div style="max-width:500px;font-size:16px;opacity:0.8;line-height:1.5;margin-bottom:30px">Michael won't kill himself. Your contract is waiting. 3 new jobs on the board. Time to earn that Zen. Coffee is cold, guns are dusty. Let's go to work, mercenary.</div>
-  <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center">
-    <button class="btn" id="wakeUpBtn" style="font-size:18px;padding:16px 40px">☀ GET UP - START WORK SHIFT</button>
-    <button class="btn secondary" id="snoozeBtn" style="padding:16px 30px">💤 SNOOZE 5 MIN</button>
-  </div>
-  <div style="margin-top:30px;display:flex;gap:10px;flex-wrap:wrap;justify-content:center;max-width:600px">
-    <div style="background:rgba(0,255,136,0.1);border:1px solid rgba(0,255,136,0.2);padding:10px 14px;border-radius:4px;font-size:12px"><b style="color:var(--zen)">WORK SHIFT</b><br>06:00 - 22:00<br>Earn Zen</div>
-    <div style="background:rgba(255,204,0,0.1);border:1px solid rgba(255,204,0,0.2);padding:10px 14px;border-radius:4px;font-size:12px"><b style="color:var(--gold)">TODAY'S JOBS</b><br>3 Side Ops<br>+500 Zen bonus</div>
-    <div style="background:rgba(0,170,255,0.1);border:1px solid rgba(0,170,255,0.2);padding:10px 14px;border-radius:4px;font-size:12px"><b style="color:var(--blue)">MORNING BRIEF</b><br>Michael moved 2 tons<br>Intel updated</div>
-  </div>
-  <audio id="alarmAudio" src="assets/audio/wakeup-alarm.mp3" preload="auto" loop></audio>
-  <audio id="briefingAudio" src="assets/audio/morning-briefing.mp3" preload="auto"></audio>
-</div>
-<style>
-@keyframes alarmBlink{from{opacity:1;transform:scale(1)}to{opacity:0.7;transform:scale(1.05)}}
-#workAlarm .btn{clip-path:polygon(8% 0,100% 0,92% 100%,0 100%)}
-</style>
-
-<!-- CUTSCENE PROGRESS -->
-<div class="cutscene-progress" id="csProgress" style="width:0%;display:none"></div>
-
-<!-- MODALS -->
-<div class="modal" id="armouryModal">
-  <div class="modal-box">
-    <div class="modal-head"><h2>◉ ARMOURY - 125 WEAPONS + VEHICLES</h2><div style="display:flex;gap:6px"><button class="btn secondary" style="padding:6px 12px;font-size:11px" onclick="playCutsceneDemo()">🎬 CUTSCENE DEMO</button><button class="btn secondary" style="padding:6px 12px;font-size:11px" onclick="closeModal('armouryModal')">CLOSE [ESC]</button></div></div>
-    <div class="filter-bar" id="gunFilters">
-      <button class="active" data-filter="all">ALL 125</button>
-      <button data-filter="Pistol">PISTOLS</button>
-      <button data-filter="SMG">SMG</button>
-      <button data-filter="AR">AR</button>
-      <button data-filter="Shotgun">SHOTGUN</button>
-      <button data-filter="Sniper">SNIPER</button>
-      <button data-filter="LMG">LMG</button>
-      <button data-filter="Launcher">LAUNCHERS</button>
-      <button data-filter="Heavy">HEAVY</button>
-      <button data-filter="Mythic">MYTHIC</button>
-    </div>
-    <div class="modal-body">
-      <div class="inventory-grid" id="gunGrid"></div>
-      <div class="side-panel" id="gunDetail">
-        <h3 style="font-family:'Orbitron';color:var(--zen);font-size:13px">SELECT WEAPON</h3>
-        <p style="opacity:0.6;font-size:12px;margin-top:8px">125 guns. Buy with ZEN. Mobile auto-aim helps on phones.</p>
-        <div style="margin-top:16px">
-          <h4 style="font-family:'Orbitron';font-size:11px">HEAVY ARSENAL</h4>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px;font-size:10px">
-            <div style="background:rgba(255,32,64,0.1);padding:6px;border:1px solid rgba(255,32,64,0.2);border-radius:3px">💣 GRENADES x4</div>
-            <div style="background:rgba(255,204,0,0.1);padding:6px;border:1px solid rgba(255,204,0,0.2);border-radius:3px">🚀 ROCKET LAUNCHERS</div>
-            <div style="background:rgba(0,255,136,0.1);padding:6px;border:1px solid rgba(0,255,136,0.2);border-radius:3px">💥 MORTARS 60-120mm</div>
-            <div style="background:rgba(0,170,255,0.1);padding:6px;border:1px solid rgba(0,170,255,0.2);border-radius:3px">🎯 MISSILE STRIKES</div>
-            <div style="background:rgba(255,255,255,0.05);padding:6px;border:1px solid rgba(255,255,255,0.1);border-radius:3px">💣 LANDMINES AT/AP</div>
-            <div style="background:rgba(160,32,240,0.1);padding:6px;border:1px solid rgba(160,32,240,0.2);border-radius:3px">🔥 TANKS & JETS</div>
-          </div>
-        </div>
-        <div style="margin-top:16px">
-          <h4 style="font-family:'Orbitron';font-size:11px">VEHICLE BAY - 35 UNITS</h4>
-          <div id="vehicleList" style="margin-top:6px;display:flex;flex-direction:column;gap:4px;max-height:180px;overflow:auto"></div>
-        </div>
-        <div style="margin-top:16px">
-          <h4 style="font-family:'Orbitron';font-size:11px">🎬 CUTSCENES</h4>
-          <div id="cutsceneList" style="margin-top:6px;display:flex;flex-direction:column;gap:4px"></div>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<div class="modal" id="questModal">
-  <div class="modal-box">
-    <div class="modal-head"><h2>◉ OPERATIONS - 70 QUESTS + CINEMATICS</h2><button class="btn secondary" style="padding:6px 12px;font-size:11px" onclick="closeModal('questModal')">CLOSE [M]</button></div>
-    <div class="filter-bar">
-      <button class="active" data-qfilter="all">ALL 70</button>
-      <button data-qfilter="Main">MAIN 30</button>
-      <button data-qfilter="Side">SIDE 40</button>
-      <button data-qfilter="Active">ACTIVE</button>
-      <button data-qfilter="Done">DONE</button>
-      <button data-qfilter="Cutscene">CUTSCENES</button>
-    </div>
-    <div class="modal-body" style="flex-direction:column">
-      <div id="questList" style="padding:12px;display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px;overflow:auto"></div>
-    </div>
-  </div>
-</div>
-
-<div class="modal" id="settingsModal">
-  <div class="modal-box" style="max-width:640px;height:auto;max-height:90vh">
-    <div class="modal-head"><h2>SETTINGS - F15 + MOBILE + CUTSCENES</h2><button class="btn secondary" style="padding:6px 12px;font-size:11px" onclick="closeModal('settingsModal')">CLOSE</button></div>
-    <div style="padding:16px;overflow:auto">
-      <h4 style="font-family:'Orbitron';color:var(--zen);margin-bottom:10px;font-size:12px">PERFORMANCE PRESET FOR SAMSUNG F15 5G</h4>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-        <button class="btn" id="qualityLow">LOW - F15 60FPS</button>
-        <button class="btn secondary" id="qualityMed">MED 45FPS</button>
-        <button class="btn secondary" id="qualityHigh">HIGH 30FPS</button>
-        <button class="btn secondary" id="qualityUltra">ULTRA PC</button>
-      </div>
-      <div style="margin-top:16px;display:grid;grid-template-columns:1fr 1fr;gap:12px">
-        <div>
-          <h4 style="font-family:'Orbitron';font-size:11px;color:var(--blue);margin-bottom:8px">📱 MOBILE SETTINGS</h4>
-          <label style="display:flex;align-items:center;gap:8px;margin:6px 0;font-size:12px"><input type="checkbox" id="toggleMobile" checked> Force Mobile Mode</label>
-          <label style="display:flex;align-items:center;gap:8px;margin:6px 0;font-size:12px"><input type="checkbox" id="toggleAutoAim" checked> Auto-Aim Assist (Mobile)</label>
-          <label style="display:flex;align-items:center;gap:8px;margin:6px 0;font-size:12px"><input type="checkbox" id="toggleGyro"> Gyro Aim</label>
-          <label style="display:flex;align-items:center;gap:8px;margin:6px 0;font-size:12px"><input type="checkbox" id="toggleHaptics" checked> Haptics Vibration</label>
-          <div style="margin-top:8px"><span style="font-size:10px;font-family:'Orbitron'">LOOK SENSITIVITY</span><input type="range" id="sens" min="0.1" max="3" step="0.1" value="1.2" style="width:100%"></div>
-        </div>
-        <div>
-          <h4 style="font-family:'Orbitron';font-size:11px;color:#a020f0;margin-bottom:8px">🎬 CUTSCENE SETTINGS</h4>
-          <label style="display:flex;align-items:center;gap:8px;margin:6px 0;font-size:12px"><input type="checkbox" id="toggleCutscenes" checked> Enable Cutscenes</label>
-          <label style="display:flex;align-items:center;gap:8px;margin:6px 0;font-size:12px"><input type="checkbox" id="toggleLetterbox" checked> Letterbox (Cinematic)</label>
-          <label style="display:flex;align-items:center;gap:8px;margin:6px 0;font-size:12px"><input type="checkbox" id="toggleSubtitles" checked> Subtitles</label>
-          <button class="btn secondary" style="padding:6px 12px;font-size:11px;margin-top:6px;width:100%" onclick="playCutsceneDemo()">🎬 TEST CUTSCENE</button>
-          <div style="margin-top:8px;font-size:10px;opacity:0.6;line-height:1.3">6 cinematics: Intro, Contract, Sniper, Yacht, Final Intel, Endgame. Skip with Space or Skip button.</div>
-        </div>
-      </div>
-      <div style="margin-top:16px;display:flex;gap:10px">
-        <label style="flex:1"><span style="font-size:10px;font-family:'Orbitron'">DRAW DISTANCE</span><input type="range" id="drawDist" min="200" max="2000" value="600" style="width:100%"></label>
-        <label style="flex:1"><span style="font-size:10px;font-family:'Orbitron'">FOV</span><input type="range" id="fovSlider" min="60" max="100" value="70" style="width:100%"></label>
-      </div>
-      <div style="margin-top:12px;font-size:11px;line-height:1.5;opacity:0.7;background:rgba(255,255,255,0.03);padding:10px;border-radius:4px">
-        <b style="color:var(--zen)">MOBILE AAA FEATURES:</b> Dual joysticks (move + look), touch swipe look zone, gyro aim, haptic feedback, auto-aim assist that locks to nearest enemy within 80m, large touch buttons, responsive HUD.<br>
-        <b style="color:#a020f0">CUTSCENES:</b> Letterbox 80px/120px, camera path lerp with smoothstep, portrait dialogue, subtitles, effects (red vignette for Michael, scope for sniper, flash, gold for victory, party lights, hack grid, slowMo). Progress bar, skip.
-      </div>
-    </div>
-  </div>
-</div>
-
-<div class="modal" id="flareModal">
-  <div class="modal-box" style="max-width:700px;height:auto;max-height:90vh">
-    <div class="modal-head"><h2>🚀 FLARES - SIGNAL & ILLUMINATION</h2><button class="btn secondary" style="padding:6px 12px;font-size:11px" onclick="closeModal('flareModal')">CLOSE [F]</button></div>
-    <div style="padding:16px;overflow:auto">
-      <h4 style="font-family:'Orbitron';color:#ff6600;margin-bottom:10px;font-size:12px">FLARE ARSENAL - 10 TYPES | MOBILE FLARE BUTTON</h4>
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px" id="flareGrid">
-        <!-- Populated by JS -->
-      </div>
-      <div style="margin-top:16px;background:rgba(255,102,0,0.08);border:1px solid rgba(255,102,0,0.2);padding:12px;border-radius:4px;font-size:11px;line-height:1.5">
-        <b style="color:#ff6600">HOW TO USE FLARES:</b><br>
-        <b>F</b> - Launch selected flare (mobile: 🚀 FLARE button)<br>
-        <b>H</b> - Illumination 60k candlepower parachute flare - lights 200m for 45s<br>
-        <b>J</b> - Red smoke - marks target for airstrike, triggers missile if near Michael's throne (0,1000)<br>
-        <b>Mobile:</b> Top selector R/G/W/☀/💨 chooses flare type, then press FLARE<br>
-        <b>Effects:</b> PointLight with flicker, glow sprite, smoke trail, parachute for illumination, ground smoke for smoke flares, SOS burst 3x<br>
-        <b>Tactical:</b> Red = enemy, Green = extraction, White = illumination, Smoke = airstrike marking, Distress = rescue, IR = stealth NVG
-      </div>
-      <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn" style="padding:8px 16px;font-size:11px;background:linear-gradient(90deg,#ff2040,#aa0011)" onclick="launchFlare('signal_red')">🚀 RED SIGNAL</button>
-        <button class="btn" style="padding:8px 16px;font-size:11px;background:linear-gradient(90deg,#00ff88,#00aa5a);color:#000" onclick="launchFlare('signal_green')">🚀 GREEN SAFE</button>
-        <button class="btn" style="padding:8px 16px;font-size:11px;background:linear-gradient(90deg,#fff,#aaa);color:#000" onclick="launchFlare('signal_white')">☀ WHITE ILLUM</button>
-        <button class="btn" style="padding:8px 16px;font-size:11px;background:linear-gradient(90deg,#ffcc00,#ff9900);color:#000" onclick="launchFlare('illumination')">☀ 60K PARACHUTE</button>
-        <button class="btn secondary" style="padding:8px 16px;font-size:11px" onclick="launchFlare('smoke_red')">💨 RED SMOKE</button>
-        <button class="btn secondary" style="padding:8px 16px;font-size:11px" onclick="launchFlare('distress')">🆘 SOS BURST</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<div class="modal" id="mobileModal">
-  <div class="modal-box" style="max-width:560px;height:auto;max-height:90vh">
-    <div class="modal-head"><h2>📱 MOBILE AAA MODE v2 + FLARES</h2><button class="btn secondary" style="padding:6px 12px;font-size:11px" onclick="closeModal('mobileModal')">CLOSE</button></div>
-    <div style="padding:16px;overflow:auto">
-      <h4 style="font-family:'Orbitron';color:var(--blue);margin-bottom:10px">MOBILE CONTROLS FOR GALAXY F15 5G - ENHANCED + FLARES</h4>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:12px;line-height:1.4">
-        <div style="background:rgba(0,255,136,0.08);padding:10px;border-radius:4px;border:1px solid rgba(0,255,136,0.15)"><b style="color:var(--zen)">LEFT STICK</b><br>Move Jackson<br>WASD equivalent<br>Haptic on edge + scale</div>
-        <div style="background:rgba(0,170,255,0.08);padding:10px;border-radius:4px;border:1px solid rgba(0,170,255,0.15)"><b style="color:var(--blue)">RIGHT STICK</b><br>Look / Aim<br>Camera control<br>Swipe + crosshair lines</div>
-        <div style="background:rgba(255,32,64,0.08);padding:10px;border-radius:4px;border:1px solid rgba(255,32,64,0.15)"><b style="color:var(--danger)">SHOOT (◉) 88px</b><br>Big red button<br>Auto-aim 85m<br>Vibration + FIRE label</div>
-        <div style="background:rgba(255,102,0,0.08);padding:10px;border-radius:4px;border:1px solid rgba(255,102,0,0.15)"><b style="color:#ff6600">FLARE 🚀 62px</b><br>Signal/Illum<br>Selector R/G/W/☀/💨<br>Marks airstrike</div>
-      </div>
-      <div style="margin-top:12px;display:grid;grid-template-columns:repeat(4,1fr);gap:6px">
-        <div style="text-align:center;background:rgba(0,0,0,0.3);padding:8px;border-radius:4px;font-size:10px">⬆<br>JUMP</div>
-        <div style="text-align:center;background:rgba(0,0,0,0.3);padding:8px;border-radius:4px;font-size:10px">◐<br>CROUCH</div>
-        <div style="text-align:center;background:rgba(0,0,0,0.3);padding:8px;border-radius:4px;font-size:10px">↻<br>RELOAD</div>
-        <div style="text-align:center;background:rgba(0,0,0,0.3);padding:8px;border-radius:4px;font-size:10px">⚡<br>SPRINT</div>
-        <div style="text-align:center;background:rgba(0,0,0,0.3);padding:8px;border-radius:4px;font-size:10px">💣<br>GRENADE</div>
-        <div style="text-align:center;background:rgba(0,0,0,0.3);padding:8px;border-radius:4px;font-size:10px">💥<br>MINE</div>
-        <div style="text-align:center;background:rgba(0,0,0,0.3);padding:8px;border-radius:4px;font-size:10px">🚀<br>FLARE</div>
-        <div style="text-align:center;background:rgba(0,0,0,0.3);padding:8px;border-radius:4px;font-size:10px">⏰<br>WORK</div>
-      </div>
-      <div style="margin-top:8px;display:grid;grid-template-columns:repeat(4,1fr);gap:6px">
-        <div style="text-align:center;background:rgba(0,0,0,0.3);padding:6px;border-radius:4px;font-size:9px">🗺<br>MAP</div>
-        <div style="text-align:center;background:rgba(0,0,0,0.3);padding:6px;border-radius:4px;font-size:9px">🔫<br>GUNS</div>
-        <div style="text-align:center;background:rgba(0,0,0,0.3);padding:6px;border-radius:4px;font-size:9px">🚀<br>FLARES</div>
-        <div style="text-align:center;background:rgba(0,0,0,0.3);padding:6px;border-radius:4px;font-size:9px">🎬<br>CUTSCENE</div>
-      </div>
-      <div style="margin-top:12px;background:rgba(0,170,255,0.08);padding:10px;border-radius:4px;border:1px solid rgba(0,170,255,0.15);font-size:11px;line-height:1.4">
-        <b>GYRO AIM:</b> Tilt phone to fine-aim. Enable via GYRO button. Uses DeviceOrientation. Works on F15 5G.<br>
-        <b>AUTO-AIM:</b> Automatically locks to nearest enemy within 80m when crosshair near. Red dot grows.<br>
-        <b>HAPTICS:</b> Vibration on shoot, hit, edge of joystick, vehicle enter.
-      </div>
-      <button class="btn" style="width:100%;margin-top:12px" onclick="document.body.classList.toggle('mobile-mode'); closeModal('mobileModal')">TOGGLE MOBILE MODE</button>
-    </div>
-  </div>
-</div>
-
-<!-- MOBILE CONTROLS - AAA -->
-<div id="mobileControls"></div>
-
-<script type="importmap">
-{
-  "imports": {
-    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
-  }
-}
+<script>
+  // Instant hand-off to the mobile-only entry point.
+  (function () {
+    var target = './mobile.html';
+    if (window.location.pathname.replace(/\/+$/, '/').slice(-12) !== '/mobile.html') {
+      window.location.replace(target);
+    }
+  })();
 </script>
-<script type="module" src="src/main.js"></script>
 </body>
 </html>
