@@ -1,87 +1,52 @@
-// F15 5G OPTIMIZATION ENGINE
-// Samsung Galaxy F15 5G Specs: Exynos 1330, Mali-G57 MC2, 4-6GB RAM, 90Hz
-// Target: 60 FPS on low, 30 FPS on high
+// F15 5G OPTIMIZATION PROFILE (MOBILE ONLY)
+// Samsung Galaxy F15 5G: Exynos 1330, Mali-G57 MC2, 4-6GB RAM, 90Hz panel.
+// Target: locked 60 FPS. Everything below is the budget the renderer,
+// the world generator and the particle system are built around.
+
+export const MOBILE_PROFILE = {
+  pixelRatio: 0.8,      // sub native buffer: the biggest single win on a 1080p phone
+  antialias: false,
+  shadows: false,
+  stencil: false,
+  fogDensity: 0.004,    // hides the horizon early, fewer pixels shaded
+  drawDistance: 550,
+  buildings: 40,        // was 80
+  trees: 50,            // was 120
+  enemies: 18,          // was 28
+  groundSegments: 12,   // was 30
+  particleLimit: 70,
+  projectileLimit: 24,
+  tracerLimit: 10,
+  maxFlares: 8
+};
 
 export const Optimization = {
-  // Adaptive quality
+  /* Cheap heuristic - no WebGL debug info needed, keeps cold start fast. */
   detectDevice() {
-    const canvas = document.createElement('canvas');
-    const gl = canvas.getContext('webgl');
-    const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
-    const renderer = debugInfo ? gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) : 'unknown';
-    const isLowEnd = /Mali|Adreno.*3|Adreno.*4|PowerVR/.test(renderer) || navigator.hardwareConcurrency <= 4;
+    const nav = navigator;
     return {
-      renderer,
-      isLowEnd,
-      cores: navigator.hardwareConcurrency || 4,
-      memory: navigator.deviceMemory || 4,
-      isMobile: /Android|iPhone|iPad/.test(navigator.userAgent)
+      isLowEnd: (nav.hardwareConcurrency || 4) <= 4 || (nav.deviceMemory || 4) <= 3,
+      cores: nav.hardwareConcurrency || 4,
+      memory: nav.deviceMemory || 4,
+      maxTouchPoints: nav.maxTouchPoints || 0,
+      screen: Math.min(window.innerWidth, window.innerHeight) + 'x' + Math.max(window.innerWidth, window.innerHeight),
+      dpr: window.devicePixelRatio || 1
     };
   },
 
+  /* Everything is capped by the mobile profile; the tier only trims the world. */
   getQualityPreset(device) {
-    if(device.isLowEnd || device.isMobile) return 'low';
-    if(device.memory < 6) return 'medium';
-    return 'high';
+    if (device.isLowEnd) return { ...MOBILE_PROFILE, buildings: 30, trees: 34, enemies: 14, drawDistance: 450 };
+    return { ...MOBILE_PROFILE };
   },
 
-  applyPreset(renderer, scene, quality) {
-    const presets = {
-      low: {
-        pixelRatio: 1.1,
-        shadows: false,
-        fogDensity: 0.0035,
-        maxBuildings: 80,
-        maxEnemies: 28,
-        drawDistance: 600,
-        antialias: false,
-        particleLimit: 50
-      },
-      medium: {
-        pixelRatio: 1.5,
-        shadows: true,
-        shadowMapSize: 1024,
-        fogDensity: 0.0025,
-        maxBuildings: 120,
-        maxEnemies: 35,
-        drawDistance: 900,
-        antialias: true,
-        particleLimit: 100
-      },
-      high: {
-        pixelRatio: 2,
-        shadows: true,
-        shadowMapSize: 2048,
-        fogDensity: 0.0018,
-        maxBuildings: 180,
-        maxEnemies: 45,
-        drawDistance: 1300,
-        antialias: true,
-        particleLimit: 200
-      }
-    };
-    return presets[quality] || presets.low;
-  },
-
-  // Object pooling for low-end
+  /* Simple object pool - phones choke on per-frame allocation / GC. */
   createPool(factory, size) {
     const pool = [];
-    for(let i=0;i<size;i++) pool.push(factory());
+    for (let i = 0; i < size; i++) pool.push(factory());
     return {
-      acquire: () => pool.pop() || factory(),
-      release: (obj) => { if(pool.length < size*2) pool.push(obj); }
+      acquire() { return pool.pop() || factory(); },
+      release(obj) { if (pool.length < size) pool.push(obj); }
     };
-  },
-
-  // LOD system
-  updateLOD(objects, cameraPos, drawDistance) {
-    objects.forEach(obj => {
-      const dist = obj.position.distanceTo(cameraPos);
-      obj.visible = dist < drawDistance * 1.2;
-      if(obj.userData.lod) {
-        const level = dist < 200 ? 0 : dist < 600 ? 1 : 2;
-        obj.userData.lod.setLevel(level);
-      }
-    });
   }
 };

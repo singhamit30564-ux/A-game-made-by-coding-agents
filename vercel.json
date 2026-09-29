@@ -1,0 +1,10 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "version": 2,
+  "rewrites": [
+    { "source": "/", "destination": "/mobile.html" },
+    { "source": "/index.html", "destination": "/mobile.html" },
+    { "source": "/game", "destination": "/mobile.html" },
+    { "source": "/play", "destination": "/mobile.html" }
+  ]
+}

@@ -120,7 +120,7 @@ export class CutsceneManager {
           <div id="csSubtitle" style="font-size:11px;opacity:0.6;margin-top:6px;letter-spacing:0.1em;font-family:'Orbitron'"></div>
         </div>
       </div>
-      <div style="position:absolute;top:8px;right:12px;font-size:10px;opacity:0.5;font-family:'Orbitron'">CUTSCENE [SPACE TO SKIP]</div>
+      <div class="csSkipHint" style="position:absolute;top:8px;right:12px;font-size:10px;opacity:0.5;font-family:'Orbitron'">CUTSCENE [SPACE TO SKIP]</div>
     `;
     document.body.appendChild(this.dialogueBox);
 
@@ -149,9 +149,6 @@ export class CutsceneManager {
     this.skipBtn.onclick = () => this.end();
     document.body.appendChild(this.skipBtn);
 
-    window.addEventListener('keydown', e=>{
-      if(this.active && e.code==='Space'){ this.end(); }
-    });
   }
 
   play(key, onEnd) {
@@ -230,10 +227,10 @@ export class CutsceneManager {
       textEl.textContent = currentScene.dialogue.text;
       // Portrait mapping
       const portraitMap = {
-        jackson: 'assets/images/references/tactical-mercenary-soldier-stealth-black-1.jpg',
-        michael: 'assets/images/references/drug-mafia-boss-cartel-villain-portrait-1.jpg',
-        handler: 'assets/images/references/tactical-mercenary-soldier-stealth-black-2.jpg',
-        enemy: 'assets/images/references/drug-mafia-boss-cartel-villain-portrait-3.jpg'
+        jackson: './assets/images/references/tactical-mercenary-soldier-stealth-black-1.jpg',
+        michael: './assets/images/references/drug-mafia-boss-cartel-villain-portrait-1.jpg',
+        handler: './assets/images/references/tactical-mercenary-soldier-stealth-black-2.jpg',
+        enemy: './assets/images/references/drug-mafia-boss-cartel-villain-portrait-3.jpg'
       };
       const src = portraitMap[currentScene.dialogue.portrait] || portraitMap.handler;
       portraitEl.src = src;
