@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { GUNS } from './data/guns.js';
 import { VEHICLES } from './data/vehicles.js';
 import { MAIN_QUESTS, SIDE_QUESTS } from './data/quests.js';
-import { CutsceneManager } from './engine/cutscene.js';
+import { CutsceneManager, CUTSCENES } from './engine/cutscene.js';
 import { MobileController, setThreeInstance } from './engine/mobile.js';
 
 // --- GLOBALS ---
@@ -213,10 +213,37 @@ function generateWorld(){
   const throneRoom = new THREE.Mesh(throneGeo, throneMat);
   throneRoom.position.set(0,7.5,1000);
   scene.add(throneRoom);
-  // Throne
   const throne = new THREE.Mesh(new THREE.BoxGeometry(3,4,3), new THREE.MeshStandardMaterial({color:0xffcc00, metalness:0.8, roughness:0.2}));
   throne.position.set(0,2,1000);
   scene.add(throne);
+
+  // Jackson's Apartment - Get Up For Work Base
+  const aptGroup = new THREE.Group();
+  // Floor
+  const aptFloor = new THREE.Mesh(new THREE.BoxGeometry(12,0.2,10), new THREE.MeshStandardMaterial({color:0x3a2a1a}));
+  aptFloor.position.set(-30,0.1,-30);
+  aptGroup.add(aptFloor);
+  // Walls
+  const wallMat = new THREE.MeshStandardMaterial({color:0x2a2a3a});
+  const wall1 = new THREE.Mesh(new THREE.BoxGeometry(12,5,0.3), wallMat); wall1.position.set(-30,2.5,-35); aptGroup.add(wall1);
+  const wall2 = new THREE.Mesh(new THREE.BoxGeometry(0.3,5,10), wallMat); wall2.position.set(-36,2.5,-30); aptGroup.add(wall2);
+  const wall3 = new THREE.Mesh(new THREE.BoxGeometry(0.3,5,10), wallMat); wall3.position.set(-24,2.5,-30); aptGroup.add(wall3);
+  const wall4 = new THREE.Mesh(new THREE.BoxGeometry(12,5,0.3), wallMat); wall4.position.set(-30,2.5,-25); aptGroup.add(wall4);
+  // Bed
+  const bed = new THREE.Mesh(new THREE.BoxGeometry(3,0.6,6), new THREE.MeshStandardMaterial({color:0x1a1a4a})); bed.position.set(-33,0.5,-32); aptGroup.add(bed);
+  const pillow = new THREE.Mesh(new THREE.BoxGeometry(2,0.3,1), new THREE.MeshStandardMaterial({color:0xffffff})); pillow.position.set(-33,0.9,-34.5); aptGroup.add(pillow);
+  // Alarm clock - glowing
+  const alarm = new THREE.Mesh(new THREE.BoxGeometry(0.6,0.4,0.3), new THREE.MeshStandardMaterial({color:0xff2040, emissive:0x330000})); alarm.position.set(-31.5,1,-34.5); alarm.name='alarmClock'; aptGroup.add(alarm);
+  // Desk with guns
+  const desk = new THREE.Mesh(new THREE.BoxGeometry(4,1,2), new THREE.MeshStandardMaterial({color:0x4a3a2a})); desk.position.set(-27,0.6,-33); aptGroup.add(desk);
+  // Coffee mug
+  const mug = new THREE.Mesh(new THREE.CylinderGeometry(0.2,0.2,0.4,8), new THREE.MeshStandardMaterial({color:0xffffff})); mug.position.set(-27,1.2,-33); aptGroup.add(mug);
+  // Work board
+  const board = new THREE.Mesh(new THREE.PlaneGeometry(4,3), new THREE.MeshStandardMaterial({color:0x111111})); board.position.set(-30,3,-34.9); aptGroup.add(board);
+  // Light
+  const aptLight = new THREE.PointLight(0xffeeaa, 1, 20); aptLight.position.set(-30,4,-30); aptGroup.add(aptLight);
+  scene.add(aptGroup);
+  window.jacksonApartment = aptGroup;
 }
 
 function createPlayer(){
@@ -326,7 +353,29 @@ function generateVehicles(){
 
 function setupQuests(){
   activeQuests = [MAIN_QUESTS[0]];
+  // Daily work jobs - GET UP FOR WORK system
+  const dailyJobs = [
+    {id:201, title:"MORNING PATROL - Work Shift", type:"Work", desc:"Daily work: Patrol city streets for cartel activity. Earn Zen for work.", objectives:["Patrol 3 zones","Report intel"], reward:500, location:{x:0,z:0}, difficulty:"Easy"},
+    {id:202, title:"COFFEE RUN - Work Errand", type:"Work", desc:"Get coffee for handler. Simple work task.", objectives:["Reach cafe","Deliver coffee"], reward:200, location:{x:100,z:100}, difficulty:"Easy"},
+    {id:203, title:"ARMOURY INVENTORY - Work", type:"Work", desc:"Count 125 guns in armoury for daily work log.", objectives:["Check armoury","Log inventory"], reward:300, location:{x:-30,z:-30}, difficulty:"Easy"},
+  ];
+  // Add daily jobs to active on work start
+  window.getDailyJobs = ()=>dailyJobs;
   updateQuestHUD();
+}
+
+function checkWorkApartment(){
+  // If player near apartment, show sleep option
+  if(player.position.distanceTo(new THREE.Vector3(-30,0,-30))<8){
+    if(!document.getElementById('sleepPrompt')){
+      const div=document.createElement('div');
+      div.id='sleepPrompt';
+      div.style.cssText='position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.8);border:1px solid #00ff88;padding:12px 20px;font-family:Orbitron;font-size:12px;z-index:4000;border-radius:4px;text-align:center';
+      div.innerHTML='🏠 APARTMENT - Press E to Sleep / Start Work Shift<br><span style="font-size:10px;opacity:0.6">Get up for work - 06:00 AM alarm</span>';
+      document.body.appendChild(div);
+      setTimeout(()=>{ const el=document.getElementById('sleepPrompt'); if(el) el.remove(); },4000);
+    }
+  }
 }
 
 function updateQuestHUD(){
@@ -732,6 +781,26 @@ function explode(pos, dmg, radius){
 
 function tryEnterVehicle(){
   if(cutsceneManager && cutsceneManager.isPlaying()) return;
+  // Check apartment - GET UP FOR WORK sleep/work
+  if(player.position.distanceTo(new THREE.Vector3(-30,0,-30))<8){
+    // Toggle work alarm / sleep
+    if(confirm("🏠 JACKSON'S APARTMENT\n\nPress OK to SLEEP (reset to 06:00 AM + Get Up For Work alarm)\nCancel to stay awake")){
+      // Sleep - reset time to 6 AM and trigger alarm
+      notify("💤 SLEEPING... 8 HOURS LATER...");
+      setTimeout(()=>{
+        window.workAlarm.show();
+        notify("⏰ 06:00 AM - GET UP FOR WORK!");
+        if(mobileController) mobileController.vibrate([50,50,50]);
+      },1000);
+      // Heal
+      health=100; armor=60; updateHealthUI();
+    } else {
+      // Start work
+      window.workAlarm.show();
+    }
+    return;
+  }
+
   if(inVehicle){
     const v = vehicles.find(v=>v.occupied);
     if(v){
@@ -755,6 +824,8 @@ function tryEnterVehicle(){
     player.visible=false;
     notify(`ENTERED ${nearest.data.name} - WASD DRIVE, E EXIT, LMB FIRE | Mobile: left stick drive`);
     if(mobileController) mobileController.vibrate(40);
+  } else {
+    checkWorkApartment();
   }
 }
 
@@ -953,19 +1024,101 @@ function updateProjectiles(dt){
 }
 
 function setupUI(){
-  document.getElementById('playBtn').addEventListener('click', ()=>{
+  // Work alarm system - GET UP FOR WORK
+  let workShiftActive = false;
+  let gameTime = {h:6,m:0};
+  window.workAlarm = {
+    show: ()=>{
+      const alarmEl = document.getElementById('workAlarm');
+      const alarmAudio = document.getElementById('alarmAudio');
+      alarmEl.style.display='flex';
+      gameTime = {h:6,m:0};
+      document.getElementById('alarmTime').textContent = `0${gameTime.h}:00 AM`;
+      // Try play audio
+      if(alarmAudio){
+        alarmAudio.volume=0.7;
+        alarmAudio.play().catch(()=>{});
+      }
+      // Blink apartment alarm mesh
+      if(window.jacksonApartment){
+        const alarmMesh = window.jacksonApartment.getObjectByName('alarmClock');
+        if(alarmMesh){
+          let blink=true;
+          const interval = setInterval(()=>{
+            if(alarmEl.style.display==='none'){ clearInterval(interval); alarmMesh.material.emissive.set(0x330000); return; }
+            alarmMesh.material.emissive.set(blink?0xff0000:0x330000);
+            blink=!blink;
+          },300);
+        }
+      }
+    },
+    hide: ()=>{
+      document.getElementById('workAlarm').style.display='none';
+      const alarmAudio = document.getElementById('alarmAudio');
+      if(alarmAudio) alarmAudio.pause();
+    }
+  };
+
+  document.getElementById('wakeUpBtn').addEventListener('click', ()=>{
+    window.workAlarm.hide();
+    const briefingAudio = document.getElementById('briefingAudio');
+    if(briefingAudio){ briefingAudio.volume=0.8; briefingAudio.play().catch(()=>{}); }
+    workShiftActive = true;
+    gameStarted = true;
     document.getElementById('mainMenu').style.display='none';
     hud.style.display='block';
-    gameStarted=true;
-    notify("DEPLOYED AS JACKSON - FIND MICHAEL");
-    notify("🎬 NEW: Press V for Cutscene | 📱 Mobile mode auto-detected");
+    player.position.set(-30,0,-28); // Spawn in apartment
+    camYaw = 0.5; camPitch = 0.1;
+    notify("☀ GOOD MORNING JACKSON - WORK SHIFT STARTED 06:00");
+    notify("💼 3 NEW JOBS ON BOARD +500 ZEN BONUS");
+    notify("🎬 Playing wake-up cutscene...");
     updateHealthUI(); updateZenUI(); updateAmmoUI(); updateWanted();
     setTimeout(()=>{
       if(!mobileController.isMobile) renderer.domElement.requestPointerLock();
-      if(cutscenesEnabled) playCutscene('intro');
-    },300);
+      if(cutscenesEnabled) playCutscene('wakeUpWork');
+      setTimeout(()=>{ if(cutscenesEnabled) playCutscene('intro'); }, 8000);
+    },500);
+    // Start work clock
+    setInterval(()=>{
+      if(!gameStarted || !workShiftActive) return;
+      gameTime.m+=1;
+      if(gameTime.m>=60){ gameTime.m=0; gameTime.h+=1; if(gameTime.h>=24) gameTime.h=0; }
+      const ampm = gameTime.h>=12?'PM':'AM';
+      const h12 = gameTime.h%12||12;
+      const timeStr = `${h12.toString().padStart(2,'0')}:${gameTime.m.toString().padStart(2,'0')} ${ampm}`;
+      const clockEl = document.getElementById('workClock');
+      if(clockEl) clockEl.textContent = timeStr + ' | WORK SHIFT';
+      const alarmTimeEl = document.getElementById('alarmTime');
+      if(alarmTimeEl && document.getElementById('workAlarm').style.display!=='none'){
+        alarmTimeEl.textContent = timeStr;
+      }
+      // 22:00 end shift
+      if(gameTime.h===22 && gameTime.m===0){
+        notify("🌙 WORK SHIFT END - 22:00 - RETURN TO APARTMENT TO SLEEP");
+        zen+=200; updateZenUI();
+      }
+      // 6 AM next day auto alarm if near apartment
+      if(gameTime.h===6 && gameTime.m===0 && player.position.distanceTo(new THREE.Vector3(-30,0,-30))<15){
+        window.workAlarm.show();
+      }
+    }, 2000); // 2 sec = 1 game minute, full day 48 min
   });
 
+  document.getElementById('snoozeBtn').addEventListener('click', ()=>{
+    const alarmAudio = document.getElementById('alarmAudio');
+    if(alarmAudio) alarmAudio.pause();
+    notify("💤 SNOOZE 5 MIN - ALARM IN 5 MIN");
+    document.getElementById('workAlarm').style.display='none';
+    setTimeout(()=>{ window.workAlarm.show(); }, 8000);
+  });
+
+  document.getElementById('playBtn').addEventListener('click', ()=>{
+    // Show work alarm first - GET UP FOR WORK
+    window.workAlarm.show();
+    notify("⏰ ALARM! GET UP FOR WORK, JACKSON!");
+  });
+
+  document.getElementById('workAlarmBtn').addEventListener('click', ()=>playCutscene('wakeUpWork'));
   document.getElementById('cutsceneBtn').addEventListener('click', ()=>playCutscene('intro'));
   document.getElementById('loadBtn').addEventListener('click', ()=>toggleModal('armouryModal'));
   document.getElementById('mobileBtn').addEventListener('click', ()=>toggleModal('mobileModal'));
@@ -1283,11 +1436,17 @@ function animate(){
     if(fps<25 && quality!=='low'){ setQuality('low'); }
   }
 
+  // Check apartment proximity every 3 sec
+  if(Math.floor(clock.elapsedTime)%3===0 && Math.floor(clock.elapsedTime*10)%10===0){
+    if(player.position.distanceTo(new THREE.Vector3(-30,0,-30))<12){
+      checkWorkApartment();
+    }
+  }
+
   renderer.render(scene,camera);
 }
 
 window.GUNS=GUNS;
-import { CUTSCENES } from './engine/cutscene.js';
 window.CUTSCENES = CUTSCENES;
 
 init();

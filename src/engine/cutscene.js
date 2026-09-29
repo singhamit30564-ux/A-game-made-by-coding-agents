@@ -2,6 +2,19 @@
 // Cinematic letterbox, camera paths, subtitles, character dialogue
 
 export const CUTSCENES = {
+  wakeUpWork: {
+    title: "06:00 AM - GET UP FOR WORK",
+    duration: 28,
+    scenes: [
+      {t:0, camPos:[-5,1.2,3], camLook:[0,1,0], fov:75, subtitle:"JACKSON'S APARTMENT - 06:00 AM - ALARM RINGING", dialogue:{speaker:"Alarm", text:"BEEP BEEP BEEP! Get up for work, Jackson!", portrait:"handler"}, effect:"alarm", shake:0.3},
+      {t:3, camPos:[-2,1.5,2], camLook:[0,1,0], fov:60, subtitle:"", dialogue:{speaker:"Jackson", text:"Ugh... five more minutes... No, Michael won't wait.", portrait:"jackson"}},
+      {t:6, camPos:[0,1.8,4], camLook:[0,1,0], fov:50, subtitle:"MORNING ROUTINE - COFFEE + GEAR CHECK", dialogue:{speaker:"Handler (Radio)", text:"Jackson! Get up for work! It's 6 AM. Michael won't kill himself. Your contract is waiting!", portrait:"handler"}, effect:"radio"},
+      {t:10, camPos:[1,1.2,1], camLook:[0,1,0], fov:45, subtitle:"125 GUNS CLEANED - 35 VEHICLES FUELED", dialogue:{speaker:"Jackson", text:"Coffee black, guns loaded, Zen to earn. Let's go to work.", portrait:"jackson"}},
+      {t:14, camPos:[0,8,0], camLook:[0,0,0], fov:70, subtitle:"SANTOS CITY - MORNING SHIFT START", dialogue:{speaker:"Handler", text:"Daily briefing: 3 new side ops, 2 tons moved last night. Get to work, mercenary.", portrait:"handler"}},
+      {t:18, camPos:[200,20,300], camLook:[200,0,300], fov:60, subtitle:"FIRST JOB: DOCKS - 500 ZEN", dialogue:{speaker:"Jackson", text:"On my way. Time to earn that Zen.", portrait:"jackson"}},
+      {t:22, camPos:[0,20,0], camLook:[0,0,0], fov:80, subtitle:"WORK STARTS NOW - 70 MISSIONS AWAIT", dialogue:null, effect:"gold"},
+    ]
+  },
   intro: {
     title: "INTRO - THE CONTRACT",
     duration: 22,
@@ -262,8 +275,15 @@ export class CutsceneManager {
     } else if(effect==='slowMo'){
       this.effectOverlay.style.background='rgba(0,0,0,0.3)';
       this.effectOverlay.style.backdropFilter='blur(2px)';
+    } else if(effect==='alarm'){
+      this.effectOverlay.style.background='rgba(255,32,64,0.2)';
+      this.effectOverlay.style.animation='alarmBlink 0.3s infinite alternate';
+    } else if(effect==='radio'){
+      this.effectOverlay.style.background='repeating-linear-gradient(90deg, rgba(0,255,136,0.05) 0px, transparent 3px)';
+      this.effectOverlay.innerHTML='<div style="position:absolute;top:20px;left:50%;transform:translateX(-50%);font-family:Orbitron;font-size:12px;color:#00ff88;letter-spacing:0.3em;opacity:0.7">📻 RADIO TRANSMISSION - 06:02 AM</div>';
     } else {
       this.effectOverlay.style.background='transparent';
+      this.effectOverlay.innerHTML='';
     }
   }
 
